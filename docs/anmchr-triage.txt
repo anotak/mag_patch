@@ -1,0 +1,36 @@
+okay just rounding up and triaging possible anmchr commands i want to investigate adding. if anyone has any cheat engine tables about any of this that would help
+
+Easy difficulty to add
+- some kind of command to verify that the character is being loaded with a new enough version of the .asi mod
+- Teleport opponent (sort of possible with variable commands)
+- screen positioned teleports (skrull) (sort of possible with variable commands)
+
+Probably medium (missing some info, but not much, if anyone has cheat engine tables it would help)
+- Increment/decrement air specials or air normals counters
+- mess with flying screen state / fsi state
+
+??? Probably medium, I need to figure out how to allocate persistent state outside of what the game already allocates, but i would like to do that anyway
+- new branch commands (including based on custom variables, but also on existing stats that we can't branch on)
+- ???? what if running commands as-opponent? i'll need to think on this
+
+medium-hard because of my lack of knowledge of how shots/children work
+- shot/child limiter - can't do if shot is out -- maybe this should be more a cmdspatk thing
+- shot/child limiter - eat old one
+- manually affect shot properties from animations?
+- player controls affecting shot properties, for example mvc2 (not mvc2-mvc3) sent's hold kick and move the stick up and down to steer the drones
+
+similar, char specifics
+- whatever is up with ammy slow? -- "set installs on opponent" / "set installs on all players"?
+- auras / visibility groups + tying to install duration
+
+Hard right now because I don't have enough knowledge of how these particular systems work for the game
+- Start prop animation w/ time offset
+- Start effect w/ time offset
+- Force end effect
+- Effect speed up/down/pause
+
+instincts say these are even harder but unsure:
+- Start sound w/ time offset
+- Force end sound
+- Priority play sound (Voice lines play all the way through)
+- this one sounds like a bit of a pipe-dream but was thinking about if maybe it'd be possible to assign an anmchr to a projectile and have it control the projectile independent of the character (???)
