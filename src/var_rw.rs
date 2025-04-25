@@ -241,7 +241,7 @@ var_rw! {
     ),
     (
         0x41,
-        TeamComboCounter,
+        TeamComboCounterReadOnly,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 if let Some(player) = c.player() {
