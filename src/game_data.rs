@@ -276,6 +276,9 @@ impl Char {
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
     offset_getter_and_setter!(get_health, set_health_raw, f32, 0x1550);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
+    offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
+    offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
+    offset_getter_and_setter!(get_normal_air_action_counter, set_normal_air_action_counter, i32, 0x4190);
 }
 
 pub fn get_p1_ptr() -> usize
@@ -343,6 +346,7 @@ impl Player {
     }
     
     offset_getter_and_setter!(get_meter, set_meter_raw, f32, 0x78);
+    offset_getter_and_setter!(get_team_combo_counter, _set_team_combo_counter_dont_use, i32, 0x90);
     // FIXME - clamp this properly
     //offset_getter_and_setter!(get_xfactor_timer, set_xfactor_timer_raw, f32, 0xC0);
 }

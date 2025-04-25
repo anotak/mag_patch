@@ -178,6 +178,48 @@ var_rw! {
         },
     ),
     (
+        0x30,
+        SpecialAirActionCounter,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_special_air_action_counter()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_special_air_action_counter(new_value as i32)
+            })
+        },
+    ),
+    (
+        0x31,
+        NormalAirActionCounter,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_normal_air_action_counter()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_normal_air_action_counter(new_value as i32)
+            })
+        },
+    ),
+    (
+        0x32,
+        CharacterComboCounter,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_character_combo_counter()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_character_combo_counter(new_value as i32)
+            })
+        },
+    ),
+    (
         0x40,
         Meter,
         |ptr| {
@@ -195,6 +237,22 @@ var_rw! {
                     player.set_meter(new_value as f32)
                 }
             })
+        },
+    ),
+    (
+        0x41,
+        TeamComboCounter,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                if let Some(player) = c.player() {
+                    player.get_team_combo_counter()
+                } else {
+                    0
+                }
+            }))
+        },
+        |_, _| {
+            // don't set
         },
     ),
     (
