@@ -201,8 +201,8 @@ var_rw! {
         0xC0,
         ConditionRegister,
         |ptr| {
-            Number::F32(Char::if_valid(ptr, 0.0, |c| {
-                c.get_condition_register() as f32
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_condition_register()
             }))
         },
         |ptr, new_value| {
