@@ -145,6 +145,7 @@ pub enum HitstunB
 
 
 #[derive(PartialEq, Eq, Debug)]
+#[repr(C)]
 pub struct Char { ptr : usize }
 
 impl fmt::Display for Char {
@@ -296,6 +297,7 @@ pub fn get_p2_ptr() -> usize
 }
 
 #[derive(PartialEq, Eq, Debug)]
+#[repr(C)]
 pub struct Player { ptr : usize }
 
 impl fmt::Display for Player {
