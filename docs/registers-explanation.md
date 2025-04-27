@@ -62,7 +62,7 @@ the EE is the right hand side register
 00 here is ignored
 e0 is the destination
 
-so let's say EE had both 1.7 in them, then register E0 gets set to 1.0 (true)
+so let's say FF and EE had both 1.7 in them, then register E0 gets set to 1.0 (true)
 otherwise register E0 gets set to 0.0 (false)
 
 ## 66_13 is a unary operation with a register
