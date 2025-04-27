@@ -60,7 +60,7 @@ so, c0 is an equality check. it has some fuzziness (within 0.000001) when compar
 the FF is the left hand side register
 the EE is the right hand side register
 00 here is ignored
-e0 is the distination
+e0 is the destination
 
 so let's say EE had both 1.7 in them, then register E0 gets set to 1.0 (true)
 otherwise register E0 gets set to 0.0 (false)
