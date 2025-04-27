@@ -10,7 +10,7 @@ use windows::core::s;
 use windows::core::{PCSTR};
 use windows::Win32::UI::WindowsAndMessaging;
 
-use retour::RawDetour;
+use retour::{RawDetour,GenericDetour};
 
 /// base address of umvc3.exe
 pub const EXE_BASE : usize = 0x140000000;
@@ -32,6 +32,63 @@ pub fn make_hook(replaced_ptr : usize, replacer_ptr : usize) -> Result<(), Box<d
     
     Ok(())
 }
+
+pub trait Hook {
+    fn make_hook(replaced_ptr : usize, replacer : Self) -> Result<(), Box<dyn std::error::Error>> where Self: retour::Function;
+    fn with_original<F, T>(original : usize, func : F) -> T
+        where Self: retour::Function,
+                F : FnOnce(&GenericDetour<Self>) -> T;
+}
+
+macro_rules! typed_hooks {
+    ($hooked_func_type:ty, $statics_mod:ident) => {
+        // type associated statics are not allowed otherwise we'd put this in the impl
+        mod $statics_mod {
+            use std::collections::HashMap;
+            use std::sync::{LazyLock, Mutex};
+            use retour::{GenericDetour};
+            
+            pub static HOOKS : LazyLock<Mutex<HashMap<usize, GenericDetour<$hooked_func_type>>>> = LazyLock::new(|| {
+                Mutex::new(HashMap::new())
+            });
+        }
+        
+        impl Hook for $hooked_func_type {
+            fn make_hook(replaced_ptr : usize, replacer : Self) -> Result<(), Box<dyn std::error::Error>> where Self: retour::Function
+            {
+                let mut hooks = $statics_mod::HOOKS.lock()?;
+                
+                let replaced_ptr = unsafe { std::mem::transmute(replaced_ptr) };
+                
+                let hook = unsafe { GenericDetour::new( replaced_ptr, replacer)? };
+                
+                unsafe { hook.enable()? };
+                
+                hooks.insert(replaced_ptr as usize, hook);
+                
+                Ok(())
+            }
+            
+            fn with_original<F,T>(original : usize, function : F) -> T
+                where Self: retour::Function,
+                F : FnOnce(&GenericDetour<Self>) -> T
+            {
+                // i'd love to have real error handling instead of just .unwrapping
+                // but also i dont know how i'd even begin to do that in this environ
+                // of a hooked function
+                
+                let hooks = $statics_mod::HOOKS.lock().unwrap();
+                
+                let hook = hooks.get(&(original as usize)).unwrap();
+                
+                function(hook)
+            }
+        }
+    }
+}
+
+typed_hooks!(crate::character_tick::TickFn, __tick_hooks);
+
 
 /// call in your hooked functions to get the original function
 #[macro_export]

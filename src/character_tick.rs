@@ -61,6 +61,8 @@ fn generic_character_tick(owner : Char) {
 }
 
 
+pub type TickFn = unsafe extern "win64" fn(*const ());
+
 macro_rules! character_ticks {
     
     {
@@ -69,33 +71,25 @@ macro_rules! character_ticks {
     } => {
         pub mod tick_hooks_macro_generated {
             use crate::hook_helpers::*;
+            type TickFn = crate::character_tick::TickFn;
             
             pub fn hook_character_ticks() -> Result<(), Box<dyn std::error::Error>> {
                 $(
-                make_hook($addr, $name as usize)?;
+                    TickFn::make_hook($addr, $name)?;
                 )+
                 
                 Ok(())
             }
             
             $(
-            fn $name(owner : *const ())
-            {
-                let original: fn(*const ()) -> () = {
-                    // i'd love to have real error handling instead of just .unwrapping
-                    // but also i dont know how i'd even begin to do that in this environ
-                    // of a hooked function
+                extern "win64" fn $name(owner : *const ())
+                {
+                    crate::character_tick::generic_character_tick(crate::game_data::Char::new(owner as usize));
                     
-                    let hooks = HOOKS.lock().unwrap();
-                    let hook = hooks.get(&($name as usize)).unwrap();
-                    let trampoline = hook.trampoline();
-                    unsafe { std::mem::transmute(trampoline) }
-                };
-                
-                crate::character_tick::generic_character_tick(crate::game_data::Char::new(owner as usize));
-                
-                original(owner);
-            }
+                    TickFn::with_original($addr, |original| {
+                        unsafe { original.call(owner) }
+                    })
+                }
             )+
         }
     }
