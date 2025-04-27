@@ -123,7 +123,7 @@ same format, 00 00 00 there doesn't mean anything, FF is the register, 30000000 
 
 so if register FF has 1.7 in it, then that gets converted to an integer (since the counter is an integer), then it gets set to 1. this means you can do 2 more specials in the air.
 
-## 66_17 is loading an opponent's variable into a register
+## 66_17 is loading an *opponent's* variable into a register
 ```
 66000000
 17000000
@@ -132,6 +132,7 @@ so if register FF has 1.7 in it, then that gets converted to an integer (since t
 ```
 same format again
 so now register A4 has the opponent's Y position (21000000)
+this always uses their point character.
 
 ## 66_18 is storing a register into an *opponent's* variable
 ```
@@ -142,7 +143,7 @@ so now register A4 has the opponent's Y position (21000000)
 ```
 same format again
 so now the opponent's yellow health (10000000) has been set to whatever number is in register 33.
-
+this always uses their point character.
 
 ## list of operations/variables
 this is all the binary operations. if you want any not listed here feel free to ask, no promises though
