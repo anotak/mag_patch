@@ -66,7 +66,7 @@ fn attach() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// original is at EXE_BASE + 0xFB7A0,
-fn execute_anmchr_command(executor_ptr : usize, anmchr_command_ptr : usize)
+extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_ptr : usize)
 {
     use crate::game_data::Char;
     
