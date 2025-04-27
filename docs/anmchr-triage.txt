@@ -6,7 +6,6 @@ Easy difficulty to add
 - screen positioned teleports (skrull) (sort of possible with variable commands)
 
 Probably medium (missing some info, but not much, if anyone has cheat engine tables it would help)
-- Increment/decrement air specials or air normals counters
 - mess with flying screen state / fsi state
 
 ??? Probably medium, I need to figure out how to allocate persistent state outside of what the game already allocates, but i would like to do that anyway
