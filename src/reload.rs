@@ -1,5 +1,6 @@
 //! altering and reloading values from storage registers in anmchr commands
 #![deny(unsafe_op_in_unsafe_fn)]
+#![deny(unreachable_patterns)]
 
 use crate::storage;
 use crate::hook_helpers::get_mut_cursor;

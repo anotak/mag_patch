@@ -1,5 +1,7 @@
 //! gameplay variables to be read and written by anmchr commands
 
+#![deny(unsafe_op_in_unsafe_fn)]
+
 use crate::match_state;
 use crate::game_data::Char;
 
