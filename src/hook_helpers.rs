@@ -119,6 +119,15 @@ pub unsafe fn get_cursor(addr : usize, len : usize) -> Cursor<&'static [u8]>
     })
 }
 
+pub unsafe fn get_mut_cursor(addr : usize, len : usize) -> Cursor<&'static mut [u8]>
+{
+    let ptr : *mut u8 = addr as *mut u8;
+    
+    Cursor::new(unsafe {
+        std::slice::from_raw_parts_mut(ptr, len)
+    })
+}
+
 pub unsafe fn read_ptr_no_check<T>(addr : usize) -> T
     where T : Copy
 {

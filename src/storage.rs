@@ -6,12 +6,13 @@
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
-use std::io::Cursor;
+use std::io::{Cursor, Seek, SeekFrom};
 
 use crate::character_extensions;
 use crate::binary_operators;
 use crate::unary_operators;
 use crate::game_data::{Char};
+use crate::reload::Reload;
 
 /// usize is usually pointer to owning object
 pub static CHAR_STORAGE : LazyLock<Mutex<HashMap<usize, CharStore>>> = LazyLock::new(|| {
@@ -116,21 +117,38 @@ impl CharStore {
     }
     
     pub fn get_f32_register(&mut self, index : u8) -> f32 {
-        let index = index & F32_REGISTER_UNMASK;
-        
-        
-        match &self.floats {
-            Some(list) => list[index as usize],
-            None => DEFAULT_REGISTER_F32,
+        if index & F32_REGISTER_MASK == F32_REGISTER_MASK {
+            let index = index & F32_REGISTER_UNMASK;
+            
+            match &self.floats {
+                Some(list) => list[index as usize],
+                None => DEFAULT_REGISTER_F32,
+            }
+        } else {
+            let index = index & F32_REGISTER_UNMASK;
+            
+            match &self.ints {
+                Some(list) => list[index as usize] as f32,
+                None => const { DEFAULT_REGISTER_I32 as f32 },
+            }
         }
     }
     
     pub fn get_i32_register(&mut self, index : u8) -> i32 {
-        let index = index & F32_REGISTER_UNMASK;
-        
-        match &self.ints {
-            Some(list) => list[index as usize],
-            None => DEFAULT_REGISTER_I32,
+        if index & F32_REGISTER_MASK == F32_REGISTER_MASK {
+            let index = index & F32_REGISTER_UNMASK;
+            
+            match &self.floats {
+                Some(list) => list[index as usize] as i32,
+                None => const { DEFAULT_REGISTER_F32 as i32 },
+            }
+        } else {
+            let index = index & F32_REGISTER_UNMASK;
+            
+            match &self.ints {
+                Some(list) => list[index as usize],
+                None => DEFAULT_REGISTER_I32,
+            }
         }
     }
     
@@ -369,6 +387,48 @@ impl RegisterType
         } else {
             RegisterType::I32
         }
+    }
+}
+
+
+
+impl CharStore
+{
+    pub const F32_RELOAD_MASK : u32 = 0xFFFFFF00;
+    pub fn store_f32_for_reload(&mut self, reload : &mut Reload, cursor : &mut Cursor<&'static mut [u8]>, offset : u64)
+    {
+        use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
+        
+        cursor.seek(SeekFrom::Start(offset)).unwrap();
+        
+        let saved = cursor.read_u32::<LittleEndian>().unwrap();
+        
+        if (saved & Self::F32_RELOAD_MASK) != Self::F32_RELOAD_MASK {
+            // early out because nothing to replace
+            return;
+        }
+        
+        let to_save = (offset, saved);
+        
+        let register_index : u8 = (saved & 0xFF).try_into().unwrap();
+        
+        let replacement_value = self.get_f32_register(register_index).to_bits();
+        
+        cursor.seek(SeekFrom::Start(offset)).unwrap();
+        cursor.write_u32::<LittleEndian>(replacement_value).unwrap();
+        
+        match &mut reload.original_values {
+            None => {
+                let mut original_values = Vec::with_capacity(16);
+                
+                original_values.push(to_save);
+                
+                reload.original_values = Some(original_values);
+            }
+            Some(original_values) => {
+                original_values.push(to_save);
+            },
+        };
     }
 }
 

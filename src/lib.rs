@@ -13,6 +13,7 @@ mod unary_operators;
 mod binary_operators;
 mod var_rw;
 mod math;
+mod reload;
 
 use windows::Win32::System::SystemServices;
 use windows::Win32::Foundation::HINSTANCE;
@@ -71,38 +72,21 @@ extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_pt
     use crate::game_data::Char;
     
     let original : fn(usize, usize) -> () = get_original_func!(execute_anmchr_command);
-    
-    /*
-    let original: fn(usize, usize) -> () = {
-        // i'd love to have real error handling instead of just .unwrapping
-        // but also i dont know how i'd even begin to do that in this environ
-        // of a hooked function
-        
-        let hooks = HOOKS.lock().unwrap();
-            
-        let hook = hooks.get(&(execute_anmchr_command as usize)).unwrap();
-        
-        let trampoline = hook.trampoline();
-        
-        unsafe { std::mem::transmute(trampoline) }
-    };
-    */
-    
-    
     let command_type_group = unsafe { read_ptr::<u32>(anmchr_command_ptr as usize) };
+    let command = unsafe { read_ptr::<u32>(anmchr_command_ptr + 4) };
+    // i am not certain this is the correct way to do this
+    // but it seems like it is working thus far
+    let exe_char_ptr = executor_ptr - 0x1348;
     
     // (game uses commands 0 through 7 inclusive)
     // 0x66 commands are ones added by anotak
     if command_type_group == Some(0x66)
     {
-        let command = unsafe { read_ptr::<u32>(anmchr_command_ptr + 4) };
         if let Some(command) = command {
             let command = num::FromPrimitive::from_u32(command);
             
             if let Some(command) = command {
-                // i am not certain this is the correct way to do this
-                // but it seems like it is working thus far
-                let exe_char_ptr = executor_ptr - 0x1348;
+                
                 let exe_char = Char::new(exe_char_ptr);
                 
                 crate::anmchr_commands::handle_ano_command(command, exe_char, anmchr_command_ptr + 8);
@@ -110,5 +94,9 @@ extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_pt
         }
     }
     
+    let reloads = crate::reload::save_anmchr_command(exe_char_ptr, anmchr_command_ptr + 8, command_type_group, command);
+    
     original(executor_ptr, anmchr_command_ptr);
+    
+    reloads.restore();
 }
