@@ -78,6 +78,8 @@ extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_pt
     // but it seems like it is working thus far
     let exe_char_ptr = executor_ptr - 0x1348;
     
+    let reloads = crate::reload::save_anmchr_command(exe_char_ptr, anmchr_command_ptr + 8, command_type_group, command);
+    
     // (game uses commands 0 through 7 inclusive)
     // 0x66 commands are ones added by anotak
     if command_type_group == Some(0x66)
@@ -93,9 +95,6 @@ extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_pt
             }
         }
     }
-    
-    let reloads = crate::reload::save_anmchr_command(exe_char_ptr, anmchr_command_ptr + 8, command_type_group, command);
-    
     original(executor_ptr, anmchr_command_ptr);
     
     reloads.restore();

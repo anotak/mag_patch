@@ -532,6 +532,9 @@ pub fn save_anmchr_command(exe_ptr : usize, command_ptr : usize, command_type_gr
                 }
             );
         },
+        
+        // we're not handling 66 commands here, that'll be done in some
+        // more robust way in anmchr_commands probably once we get around to it
         (_,_) => (),
     }
     
