@@ -373,6 +373,164 @@ pub fn save_anmchr_command(exe_ptr : usize, command_ptr : usize, command_type_gr
                 }
             );
         },
+        (1,0xB6)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 3 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 4 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                }
+            );
+        },
+        (1,0xB7) | (1,0xB8) | (1,0xB9) | (1,0xBA) | (1,0xBB) | (1,0xBC) | (1,0xBD) | (1,0xBE) => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 3 });
+                }
+            );
+        },
+        (1,0xBF)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 4 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                }
+            );
+        },
+        (1,0xC1)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 4 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                }
+            );
+        },
+        (1,0xC3)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 8 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 9 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 10 });
+                }
+            );
+        },
+        (1,0xCA)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
+                }
+            );
+        },
+        (1,0xCC) | (1,0xCD) | (1,0xCE) | (1,0xCF) | (1,0xD0) | (1,0xD1) => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 9 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 10 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 11 });
+                }
+            );
+        },
+        (1,0xD2)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
+                }
+            );
+        },
+        (1,0xDC)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 9 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 10 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 12 });
+                }
+            );
+        },
+        (1,0xDD)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 3 });
+                }
+            );
+        },
+        (1,0xE7) | (1,0xE8) | (1,0xE9) | (1,0xEA) | (1,0xEB) | (1,0xEC) | (1,0xED) | (1,0xEE) | (1,0xEF)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                }
+            );
+        },
+        (1,0xF0)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                }
+            );
+        },
+        (1,0xF7)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 9 });
+                }
+            );
+        },
+        (1,0xF8)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                }
+            );
+        },
+        (1,0xF9)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
+                }
+            );
+        },
+        (1,0xFB)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
+                }
+            );
+        },
+        (1,0xFD)  => {
+            storage::with(
+                exe_ptr,
+                |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
+                }
+            );
+        },
         (_,_) => (),
     }
     
