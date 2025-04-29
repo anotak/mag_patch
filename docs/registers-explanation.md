@@ -7,7 +7,7 @@ these are numbered
 80-ff: floating point registers.
 so basically if it starts with an 8, 9, a,b,c,d,e,f it's a floating point register.
 
-registers all default to storing 0 at the start of a game.
+registers all default to storing 0 at the start of a game. also note that any registers will never get set to an invalid number like infinity or "[not a number](https://en.wikipedia.org/wiki/NaN)" if you do something like division by 0, instead they'll be set back to 0. if you notice something being set to NaN or infinity, please report it as a bug.
 
 also, for all of these, any time you use one of these, the "condition register" gets set to the result, which is the thing used for the game's existing conditional commands like 0_02. i only tested 0_02 and 0_08 but the other should probably work too. so this is gonna be big way to get more complicated logics
 
