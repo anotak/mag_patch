@@ -242,8 +242,8 @@ pub fn save_anmchr_command(exe_ptr : usize, command_ptr : usize, command_type_gr
                 exe_ptr,
                 |store| {
                     store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 5 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 6 });
                     store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 7 });
-                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 8 });
                 }
             );
         },
