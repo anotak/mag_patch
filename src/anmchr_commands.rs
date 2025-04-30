@@ -256,19 +256,19 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             }
         }, 
         AnoCmd::LoadVarIntoRegister => {
-            load_var_into_register(exe_char, command_ptr)
+            load_var_into_register(exe_char.clone(), exe_char, command_ptr)
         }, 
         AnoCmd::StoreVarFromRegister => {
-            store_var_into_register(exe_char, command_ptr)
+            store_var_into_register(exe_char.clone(), exe_char, command_ptr)
         },
         AnoCmd::LoadOpponentVarIntoRegister => {
             if let Some(opponent) = exe_char.get_opponent_point_char() {
-                load_var_into_register(opponent, command_ptr)
+                load_var_into_register(exe_char, opponent, command_ptr)
             }
         }, 
         AnoCmd::StoreOpponentVarFromRegister => {
             if let Some(opponent) = exe_char.get_opponent_point_char() {
-                store_var_into_register(opponent, command_ptr)
+                store_var_into_register(exe_char, opponent, command_ptr)
             }
         },
         AnoCmd::SuckX => {
@@ -284,7 +284,7 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
 }
 
 
-fn load_var_into_register(character : Char, command_ptr : usize)
+fn load_var_into_register(storage_character : Char, variable_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
     
@@ -296,29 +296,29 @@ fn load_var_into_register(character : Char, command_ptr : usize)
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
     storage::with(
-        character.get_ptr(),
+        storage_character.get_ptr(),
         |store| {
             match destination_type {
                 RegisterType::F32 => {
-                    let result = var_rw::MatchState::load_f32(character.get_ptr(), var);
+                    let result = var_rw::MatchState::load_f32(variable_character.get_ptr(), var);
                     
                     store.set_f32_register(destination, result);
                     
-                    character.set_condition_register(result as i32);
+                    variable_character.set_condition_register(result as i32);
                 },
                 RegisterType::I32 => {
-                    let result = var_rw::MatchState::load_i32(character.get_ptr(), var);
+                    let result = var_rw::MatchState::load_i32(variable_character.get_ptr(), var);
                     
                     store.set_i32_register(destination, result);
                     
-                    character.set_condition_register(result);
+                    variable_character.set_condition_register(result);
                 },
             };
         }
     );
 }
 
-fn store_var_into_register(character : Char, command_ptr : usize)
+fn store_var_into_register(storage_character : Char, variable_character : Char,  command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
     
@@ -329,22 +329,22 @@ fn store_var_into_register(character : Char, command_ptr : usize)
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
     storage::with(
-        character.get_ptr(),
+        storage_character.get_ptr(),
         |store| {
             match source_type {
                 RegisterType::F32 => {
                     let source_value = store.get_f32_register(source);
                     
-                    var_rw::MatchState::store_f32(character.get_ptr(), var, source_value);
+                    var_rw::MatchState::store_f32(variable_character.get_ptr(), var, source_value);
                     
-                    character.set_condition_register(source_value as i32);
+                    variable_character.set_condition_register(source_value as i32);
                 },
                 RegisterType::I32 => {
                     let source_value = store.get_i32_register(source);
                     
-                    var_rw::MatchState::store_i32(character.get_ptr(), var, source_value);
+                    var_rw::MatchState::store_i32(variable_character.get_ptr(), var, source_value);
                     
-                    character.set_condition_register(source_value);
+                    variable_character.set_condition_register(source_value);
                 },
             };
         }
