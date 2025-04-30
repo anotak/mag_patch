@@ -26,6 +26,39 @@ macro_rules! offset_getter_and_setter {
     }
 }
 
+/// We set up getters and setters for basic offsetted values inside structs like so. Setting them up this way reduces code duplication / chance mistakes.
+macro_rules! offset_getter_and_setter_flag {
+    ($getter:ident, $setter:ident, $ty:ty, $offset:expr, $flag:expr) => {
+        #[allow(dead_code)]
+        pub fn $getter(&self) -> bool
+        {
+            let offset = ($offset) as usize;
+            let value = unsafe { read_ptr_no_check::<$ty>(self.ptr + offset) };
+            
+            if (value & const { $flag }) == const { $flag } {
+                true
+            } else {
+                false
+            }
+        }
+        
+        #[allow(dead_code)]
+        pub fn $setter(&self, new_value : bool)
+        {
+            let offset = ($offset) as usize;
+            
+            let value = unsafe { read_ptr_no_check::<$ty>(self.ptr + offset) };
+            let value = if new_value {
+                value | const { $flag }
+            } else {
+                value & const { !$flag }
+            };
+            
+            unsafe { write_ptr::<$ty>(self.ptr + offset, value) }
+        }
+    }
+}
+
 pub fn get_p1_char1_ptr() -> usize
 {
     unsafe {
@@ -144,7 +177,7 @@ pub enum HitstunB
 
 
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 #[repr(C)]
 pub struct Char { ptr : usize }
 
@@ -280,6 +313,9 @@ impl Char {
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
     offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
     offset_getter_and_setter!(get_normal_air_action_counter, set_normal_air_action_counter, i32, 0x4190);
+    
+    
+    offset_getter_and_setter_flag!(get_flying_screen_install, set_flying_screen_install, u8, 0x1509, 0x04);
 }
 
 pub fn get_p1_ptr() -> usize

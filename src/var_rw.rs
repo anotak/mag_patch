@@ -4,6 +4,7 @@
 
 use crate::match_state;
 use crate::game_data::Char;
+use crate::math::*;
 
 /// used internally here inside the var_rw! macro to convey type, then whatever cast is needed is done
 enum Number {
@@ -268,6 +269,22 @@ var_rw! {
         |ptr, new_value| {
             Char::if_valid(ptr, (), |c| {
                 c.set_condition_register(new_value as i32)
+            })
+        },
+    ),
+    
+    
+    (
+        0x1000,
+        FlyingScreenInstallFlag,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                i32_bool(c.get_flying_screen_install())
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_flying_screen_install(is_i32_true(new_value as i32))
             })
         },
     ),
