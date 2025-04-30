@@ -143,8 +143,6 @@ impl CharStore {
                 None => const { DEFAULT_REGISTER_F32 as i32 },
             }
         } else {
-            let index = index & F32_REGISTER_UNMASK;
-            
             match &self.ints {
                 Some(list) => list[index as usize],
                 None => DEFAULT_REGISTER_I32,
