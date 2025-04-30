@@ -202,24 +202,16 @@ pub fn save_anmchr_command(exe_ptr : usize, command_ptr : usize, command_type_gr
             storage::with(
                 exe_ptr,
                 |store| {
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 29 });
                     store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 30 });
                     store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 31 });
-                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 32 });
+                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 33 });
                     store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 34 });
                     store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 35 });
-                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 36 });
                 }
             );
         },
-        (1,0x89) => {
-            storage::with(
-                exe_ptr,
-                |store| {
-                    store.store_f32_for_reload(&mut reload, &mut cursor, const { SIZE_U32 * 3 });
-                }
-            );
-        },
-        (1,0x8a) => {
+        (1,0x89) | (1,0x8a) => {
             storage::with(
                 exe_ptr,
                 |store| {
