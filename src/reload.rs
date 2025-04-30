@@ -70,7 +70,6 @@ pub fn save_anmchr_command(exe_ptr : usize, command_ptr : usize, command_type_gr
                     for table_index  in 0..len {
                         let seek_offset = SIZE_U32 * (2 + table_index as u64);
                         cursor.seek(SeekFrom::Start(seek_offset)).unwrap();
-                        println!("{}", target_ptr);
                         
                         let value_type = cursor.read_u32::<LittleEndian>().unwrap();
                         match value_type {
