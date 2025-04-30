@@ -14,6 +14,8 @@ mod binary_operators;
 mod var_rw;
 mod math;
 mod reload;
+#[cfg(test)]
+mod tests;
 
 use windows::Win32::System::SystemServices;
 use windows::Win32::Foundation::HINSTANCE;
@@ -67,7 +69,7 @@ fn attach() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// original is at EXE_BASE + 0xFB7A0,
-extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_ptr : usize)
+pub extern "win64" fn execute_anmchr_command(executor_ptr : usize, anmchr_command_ptr : usize)
 {
     use crate::game_data::Char;
     
