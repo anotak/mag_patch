@@ -173,7 +173,8 @@ impl CharStore {
     
     pub fn register_unary_operation(&mut self, source : u8, destination : u8, operation : unary_operators::UnaryOp)
     {
-        let ltype = RegisterType::identify(destination);
+        let ltype = RegisterType::identify(source);
+        let rtype = RegisterType::identify(destination);
         
         match ltype
         {
@@ -182,7 +183,12 @@ impl CharStore {
                     self.get_f32_register(source),
                     operation
                 );
-                self.set_f32_register(destination, result);
+                
+                match rtype {
+                    RegisterType::F32 => self.set_f32_register(destination, result),
+                    RegisterType::I32 => self.set_i32_register(destination, result as i32),
+                }
+                
                 self.character.set_condition_register(result as i32);
             },
             RegisterType::I32 => {
@@ -190,7 +196,12 @@ impl CharStore {
                     self.get_i32_register(source),
                     operation
                 );
-                self.set_i32_register(destination, result);
+                
+                match rtype {
+                    RegisterType::F32 => self.set_f32_register(destination, result as f32),
+                    RegisterType::I32 => self.set_i32_register(destination, result),
+                }
+                
                 self.character.set_condition_register(result);
             },
         };
