@@ -14,6 +14,7 @@ mod binary_operators;
 mod var_rw;
 mod math;
 mod reload;
+mod error;
 #[cfg(test)]
 mod tests;
 
@@ -21,6 +22,7 @@ use windows::Win32::System::SystemServices;
 use windows::Win32::Foundation::HINSTANCE;
 
 use crate::hook_helpers::*;
+use crate::error::*;
 
 
 #[unsafe(no_mangle)]
@@ -37,7 +39,7 @@ pub extern "system" fn DllMain(
     };
     
     match result {
-        Err(e) => {handle_error(e); false},
+        Err(e) => {panic(e); false},
         Ok(()) => true,
     }
 }
@@ -56,8 +58,6 @@ impl std::fmt::Display for MpError {
 }
 
 fn attach() -> Result<(), Box<dyn std::error::Error>> {
-    //make_hook(EXE_BASE + 0xc84f0, ryu_character_tick as usize)?;
-    
     crate::character_tick::hook_character_ticks()?;
     
     make_hook(EXE_BASE + 0xFB7A0, execute_anmchr_command as usize)?;

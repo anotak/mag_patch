@@ -12,6 +12,8 @@ use windows::Win32::UI::WindowsAndMessaging;
 
 use retour::{RawDetour,GenericDetour};
 
+use crate::error::*;
+
 /// base address of umvc3.exe
 pub const EXE_BASE : usize = 0x140000000;
 
@@ -22,13 +24,20 @@ pub static HOOKS : LazyLock<Mutex<HashMap<usize, RawDetour>>> = LazyLock::new(||
 
 pub fn make_hook(replaced_ptr : usize, replacer_ptr : usize) -> Result<(), Box<dyn std::error::Error>>
 {
+    let mut hooks = HOOKS.lock()?;
+    
+    if hooks.contains_key(&(replaced_ptr as usize))
+    {
+        let addr = replaced_ptr as usize;
+        
+        panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", addr));
+    }
+    
     let hook = unsafe { RawDetour::new( replaced_ptr as *const (), replacer_ptr as *const ())? };
     
     unsafe { hook.enable()? };
     
-    let mut hooks = HOOKS.lock()?;
-    
-    hooks.insert(replacer_ptr as usize, hook);
+    hooks.insert(replaced_ptr as usize, hook);
     
     Ok(())
 }
@@ -57,6 +66,13 @@ macro_rules! typed_hooks {
             fn make_hook(replaced_ptr : usize, replacer : Self) -> Result<(), Box<dyn std::error::Error>> where Self: retour::Function
             {
                 let mut hooks = $statics_mod::HOOKS.lock()?;
+                
+                if hooks.contains_key(&(replaced_ptr as usize))
+                {
+                    let addr = replaced_ptr as usize;
+                    
+                    panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", addr));
+                }
                 
                 let replaced_ptr = unsafe { std::mem::transmute(replaced_ptr) };
                 
@@ -171,18 +187,6 @@ pub fn debug_msg<S: Into<String>>(msg : S)
             None,
             PCSTR(msg.as_ptr()  as *const u8),
             s!("mag_patch debug message"),
-            Default::default()
-        );
-    };
-}
-
-pub fn handle_error(_error : Box<dyn std::error::Error>)
-{
-    //let msg = format!("mag_patch error:\n{}",error.to_string());
-    unsafe {
-        WindowsAndMessaging::MessageBoxA(None,
-            s!("mag_patch error happened sorry for no more info"), //msg.into(),
-            s!("mag_patch error"),
             Default::default()
         );
     };
