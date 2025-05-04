@@ -24,20 +24,20 @@ pub static HOOKS : LazyLock<Mutex<HashMap<usize, RawDetour>>> = LazyLock::new(||
 
 pub fn make_hook(replaced_ptr : usize, replacer_ptr : usize) -> Result<(), Box<dyn std::error::Error>>
 {
+    let key = replacer_ptr;
+    
     let mut hooks = HOOKS.lock()?;
     
-    if hooks.contains_key(&(replaced_ptr as usize))
+    if hooks.contains_key(&key)
     {
-        let addr = replaced_ptr as usize;
-        
-        panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", addr));
+        panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", key));
     }
     
     let hook = unsafe { RawDetour::new( replaced_ptr as *const (), replacer_ptr as *const ())? };
     
     unsafe { hook.enable()? };
     
-    hooks.insert(replaced_ptr as usize, hook);
+    hooks.insert(key as usize, hook);
     
     Ok(())
 }
