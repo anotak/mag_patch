@@ -2,15 +2,12 @@ okay just rounding up and triaging possible anmchr commands i want to investigat
 
 Easy difficulty to add
 - some kind of command to verify that the character is being loaded with a new enough version of the .asi mod
-- Teleport opponent (sort of possible with variable commands)
-- screen positioned teleports (skrull) (sort of possible with variable commands)
+- screen positioned teleports (skrull) (sort of possible with variable commands??)
+- register indirect load / store???
 
 Probably medium (missing some info, but not much, if anyone has cheat engine tables it would help)
 - mess with flying screen state / fsi state
-
-??? Probably medium, I need to figure out how to allocate persistent state outside of what the game already allocates, but i would like to do that anyway
-- new branch commands (including based on custom variables, but also on existing stats that we can't branch on)
-- ???? what if running commands as-opponent? i'll need to think on this
+- steering/aiming
 
 medium-hard because of my lack of knowledge of how shots/children work
 - shot/child limiter - can't do if shot is out -- maybe this should be more a cmdspatk thing
@@ -27,6 +24,8 @@ Hard right now because I don't have enough knowledge of how these particular sys
 - Start effect w/ time offset
 - Force end effect
 - Effect speed up/down/pause
+- ???? what if running commands as-opponent? i'll need to think on this
+- what if running the commands from another anmchr entry as a "function" and then returning
 
 instincts say these are even harder but unsure:
 - Start sound w/ time offset
