@@ -48,6 +48,7 @@ pub fn save_anmchr_command(exe_ptr : usize, command_ptr : usize, command_type_gr
         None => return reload,
     };
     
+    #[cfg_attr(not(test), expect(unused_variables))]
     let command = match command {
         Some(c) => c,
         None => return reload,
