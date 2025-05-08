@@ -3,6 +3,7 @@
 
 use crate::hook_helpers::*;
 use crate::storage;
+use crate::math::near_eq;
 
 /// interpret a string that looks like "12abce53" to a series of hex bytes
 fn to_bytes(input : &str) -> Vec<u8>
@@ -107,6 +108,16 @@ fn get_register_i32(ptr : usize, register : usize) -> i32
     )
 }
 
+fn get_register_f32(ptr : usize, register : usize) -> f32
+{
+    storage::with(
+        ptr - 0x1348,
+        |store| {
+            store.get_f32_register(register as u8)
+        }
+    )
+}
+
 #[test]
 fn test_commands() {
     make_hook(replaced_fake_execute_anmchr_command as usize, crate::execute_anmchr_command as usize).unwrap();
@@ -116,7 +127,19 @@ fn test_commands() {
     
     let ptr = ptr + 0x4000;
     
-    // register[1] = register[1] + 1 = 1
+    // register[0xff] = 1.7
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        10000000
+        000000FF
+        9999d93F"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0xff), 1);
+    assert!(near_eq(get_register_f32(ptr, 0xff), 1.7));
+    
+    // register[0x1] = register[0x1] + 1 = 1
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -128,7 +151,7 @@ fn test_commands() {
     
     assert_eq!(get_register_i32(ptr, 0x01), 1);
     
-    // register[1] = register[1] + 1 = 2
+    // register[0x1] = register[0x1] + 1 = 2
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -140,9 +163,9 @@ fn test_commands() {
     
     assert_eq!(get_register_i32(ptr, 0x01), 2);
     
-    // register[2] = register[1] operation[1] ccc = 1998
+    // register[0x2] = register[0x1] operation[0x1] ccc = 1998
     // should be multiply since register 01 contains 02
-    // register[2] = register[1] * ccc = 1998
+    // register[0x2] = register[0x1] * ccc = 1998
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -154,7 +177,7 @@ fn test_commands() {
     
     assert_eq!(get_register_i32(ptr, 0x02), 0x1998);
     
-    // register[3] = register[2] / register[1] = ccc
+    // register[0x3] = register[0x2] / register[0x1] = ccc
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -165,7 +188,7 @@ fn test_commands() {
     
     assert_eq!(get_register_i32(ptr, 0x03), 0xCCC);
     
-    // register[55] = isqrt(register[2]) = 80
+    // register[0x55] = isqrt(register[0x2]) = 80
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -175,6 +198,18 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_i32(ptr, 0x55), 80);
+    
+    // register[0x12] = bitwise not(0x12345678) = 0xEDCBA987
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        14000000
+        B0000000
+        00000012
+        78563412"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x12), 0xEDCBA987u32 as i32);
 }
 
 
