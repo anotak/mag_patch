@@ -309,7 +309,7 @@ binary_operators! {
     (
         0xC0, EqualityApproximate,
         |lhs : f32, rhs : f32| {
-            f32_bool(abs_diff(lhs,rhs) < COMPARISON_EPSILON)
+            f32_bool(near_eq(lhs, rhs))
         },
         |lhs : i32, rhs : i32| {
             i32_bool(lhs == rhs)

@@ -54,6 +54,11 @@ pub fn abs_diff(lhs : f32, rhs : f32) -> f32
     (lhs - rhs).abs()
 }
 
+pub fn near_eq(lhs : f32, rhs : f32) -> bool
+{
+    abs_diff(lhs,rhs) < COMPARISON_EPSILON
+}
+
 // see https://docs.rs/micromath/latest/src/micromath/float/cos.rs.html#224-234
 // and also graphed here https://www.desmos.com/calculator/ay4td67mfc
 /// Approximate sine, using this instead of rust's builtin because of determinism reasons
