@@ -48,8 +48,13 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let op_team = my_team.opposite();
             //debug_msg(format!("op_team = {:?}", op_team));
             
-            let offset : f32 = { 
-                let offset = unsafe { read_ptr_no_check::<f32>(command_ptr) };
+            let offset : f32 = {
+                let offset = storage::with(
+                    exe_char.get_ptr(),
+                    |store| {
+                        store.read_f32_with_replacement(command_ptr)
+                    }
+                );
                 
                 if offset.is_finite() {
                     offset
@@ -92,8 +97,13 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let my_team = exe_char.identify_team();
             let op_team = my_team.opposite();
             
-            let offset : f32 = { 
-                let offset = unsafe { read_ptr_no_check::<f32>(command_ptr) };
+            let offset : f32 = {
+                let offset = storage::with(
+                    exe_char.get_ptr(),
+                    |store| {
+                        store.read_f32_with_replacement(command_ptr)
+                    }
+                );
                 
                 if offset.is_finite() {
                     offset
@@ -170,7 +180,7 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                     |store| {
                         match op_type {
                             RegisterType::F32 => {
-                                let rhs = cursor.read_f32::<LittleEndian>().unwrap();
+                                let rhs = store.cursor_read_f32_with_replacement(&mut cursor);
                                 
                                 store.register_imm_operation_f32(lhs, rhs, destination, operation);
                             },
@@ -241,7 +251,7 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                     |store| {
                         match op_type {
                             RegisterType::F32 => {
-                                let immediate = cursor.read_f32::<LittleEndian>().unwrap();
+                                let immediate = store.cursor_read_f32_with_replacement(&mut cursor);
                                 
                                 store.immediate_unary_operation_f32(immediate, destination, operation);
                             },
@@ -275,9 +285,15 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             use character_extensions::SuckOpponent;
             
             let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<f32>() * 2 }) };
-            let magnitude = cursor.read_f32::<LittleEndian>().unwrap();
-            let delta = cursor.read_f32::<LittleEndian>().unwrap();
-            
+            let (magnitude, delta) = storage::with(
+                exe_char.get_ptr(),
+                |store| {
+                    let magnitude = store.cursor_read_f32_with_replacement(&mut cursor);
+                    let delta = store.cursor_read_f32_with_replacement(&mut cursor);
+                    
+                    (magnitude, delta)
+                }
+            );
             SuckOpponent::apply_suck(exe_char, magnitude, delta);
         },
     }

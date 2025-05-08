@@ -8,11 +8,15 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 use std::io::{Cursor, Seek, SeekFrom};
 
+use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
+
+
 use crate::character_extensions;
 use crate::binary_operators;
 use crate::unary_operators;
 use crate::game_data::{Char};
 use crate::reload::Reload;
+use crate::hook_helpers::read_ptr_no_check;
 
 /// usize is usually pointer to owning object
 pub static CHAR_STORAGE : LazyLock<Mutex<HashMap<usize, CharStore>>> = LazyLock::new(|| {
@@ -152,12 +156,10 @@ impl CharStore {
     
     pub fn read_into_register(&mut self, destination : u8, cursor : &mut Cursor<&'static [u8]>)
     {
-        use byteorder::{LittleEndian, ReadBytesExt};
-        
         match RegisterType::identify(destination)
         {
             RegisterType::F32 => {
-                let immediate = cursor.read_f32::<LittleEndian>().unwrap();
+                let immediate = self.cursor_read_f32_with_replacement(cursor);
                 self.set_f32_register(destination, immediate);
                 self.character.set_condition_register(immediate as i32);
             },
@@ -404,10 +406,35 @@ impl RegisterType
 impl CharStore
 {
     pub const F32_RELOAD_MASK : u32 = 0xFFFFFF00;
+    
+    pub fn read_f32_with_replacement(&mut self, ptr : usize) -> f32
+    {
+        let value = unsafe { read_ptr_no_check::<u32>(ptr) };
+        
+        if (value & Self::F32_RELOAD_MASK) != Self::F32_RELOAD_MASK {
+            f32::from_bits(value)
+        } else {
+            let register_index : u8 = (value & 0xFF).try_into().unwrap();
+            
+            self.get_f32_register(register_index)
+        }
+    }
+    
+    pub fn cursor_read_f32_with_replacement(&mut self,  cursor : &mut Cursor<&'static [u8]>) -> f32
+    {
+        let value = cursor.read_u32::<LittleEndian>().unwrap();
+        
+        if (value & Self::F32_RELOAD_MASK) != Self::F32_RELOAD_MASK {
+            f32::from_bits(value)
+        } else {
+            let register_index : u8 = (value & 0xFF).try_into().unwrap();
+            
+            self.get_f32_register(register_index)
+        }
+    }
+    
     pub fn store_f32_for_reload(&mut self, reload : &mut Reload, cursor : &mut Cursor<&'static mut [u8]>, offset : u64)
     {
-        use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
-        
         cursor.seek(SeekFrom::Start(offset)).unwrap();
         
         let saved = cursor.read_u32::<LittleEndian>().unwrap();
