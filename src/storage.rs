@@ -433,6 +433,19 @@ impl CharStore
         }
     }
     
+    pub fn cursor_read_u32_with_replacement(&mut self,  cursor : &mut Cursor<&'static [u8]>) -> u32
+    {
+        let value = cursor.read_u32::<LittleEndian>().unwrap();
+        
+        if (value & Self::F32_RELOAD_MASK) != Self::F32_RELOAD_MASK {
+            value
+        } else {
+            let register_index : u8 = (value & 0xFF).try_into().unwrap();
+            
+            self.get_i32_register(register_index) as u32
+        }
+    }
+    
     pub fn store_f32_for_reload(&mut self, reload : &mut Reload, cursor : &mut Cursor<&'static mut [u8]>, offset : u64)
     {
         cursor.seek(SeekFrom::Start(offset)).unwrap();

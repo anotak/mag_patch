@@ -163,7 +163,12 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::BinaryOperationRegisterImmediate => {
             let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 3 }) };
             
-            let operation = cursor.read_u32::<LittleEndian>().unwrap();
+            let operation = storage::with(
+                    exe_char.get_ptr(),
+                    |store| {
+                        store.cursor_read_u32_with_replacement(&mut cursor)
+                    }
+                );
             let operation = num::FromPrimitive::from_u32(operation);
             
             let lhs = cursor.read_u8().unwrap();
@@ -197,7 +202,12 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::BinaryOperationRegisterRegister => {
             let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
             
-            let operation = cursor.read_u32::<LittleEndian>().unwrap();
+            let operation = storage::with(
+                    exe_char.get_ptr(),
+                    |store| {
+                        store.cursor_read_u32_with_replacement(&mut cursor)
+                    }
+                );
             let operation = num::FromPrimitive::from_u32(operation);
             
             let lhs = cursor.read_u8().unwrap();
@@ -218,7 +228,12 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             
             let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
             
-            let operation = cursor.read_u32::<LittleEndian>().unwrap();
+            let operation = storage::with(
+                    exe_char.get_ptr(),
+                    |store| {
+                        store.cursor_read_u32_with_replacement(&mut cursor)
+                    }
+                );
             let operation = num::FromPrimitive::from_u32(operation);
             
             let reg = cursor.read_u8().unwrap();
@@ -237,7 +252,12 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::UnaryOperationImmediate => {
             let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 3 }) };
             
-            let operation = cursor.read_u32::<LittleEndian>().unwrap();
+            let operation = storage::with(
+                    exe_char.get_ptr(),
+                    |store| {
+                        store.cursor_read_u32_with_replacement(&mut cursor)
+                    }
+                );
             let operation = num::FromPrimitive::from_u32(operation);
             
             cursor.seek(SeekFrom::Current(3)).unwrap();
