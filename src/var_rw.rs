@@ -258,6 +258,20 @@ var_rw! {
             // don't set
         },
     ),
+    
+    (
+        0xB0,
+        FacingReadOnly,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                i32_bool(c.get_facing() == crate::game_data::Facing::Left)
+            }))
+        },
+        |_, _| {
+            // don't set
+        },
+    ),
+    
     (
         0xC0,
         ConditionRegister,
