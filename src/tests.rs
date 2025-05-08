@@ -1,6 +1,9 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![cfg(test)]
 
+use crate::hook_helpers::*;
+use crate::storage;
+
 /// interpret a string that looks like "12abce53" to a series of hex bytes
 fn to_bytes(input : &str) -> Vec<u8>
 {
@@ -81,6 +84,99 @@ fn test_reload_one(to_test_str : &str, expected_str : &str)
         assert_eq!(a, b, "in test of \n\t{}\n\tvs\n\t{},\n\nto_test {:#X} != {:#X} original at index {} bytes (div by 4 = {})", to_test_str, expected_str, a, b, index, index/4);
     }
 }
+
+
+const TEST_CHARACTER_STRUCT_SIZE : usize = 0x10000;
+fn test_execute_anmchr_command(ptr : usize, to_test_str : &str)
+{
+    let mut to_test = to_bytes(to_test_str);
+    
+    crate::execute_anmchr_command(ptr, to_test.as_mut_ptr() as usize);
+}
+
+
+extern "win64" fn replaced_fake_execute_anmchr_command(_executor_ptr : usize, _anmchr_command_ptr : usize) {}
+
+fn get_register_i32(ptr : usize, register : usize) -> i32
+{
+    storage::with(
+        ptr - 0x1348,
+        |store| {
+            store.get_i32_register(register as u8)
+        }
+    )
+}
+
+#[test]
+fn test_commands() {
+    make_hook(replaced_fake_execute_anmchr_command as usize, crate::execute_anmchr_command as usize).unwrap();
+    
+    let mut char_struct = [0; TEST_CHARACTER_STRUCT_SIZE];
+    let ptr = char_struct.as_mut_ptr() as usize;
+    
+    let ptr = ptr + 0x4000;
+    
+    // register[1] = register[1] + 1 = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        00000000
+        01000001
+        01000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x01), 1);
+    
+    // register[1] = register[1] + 1 = 2
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        00000000
+        01000001
+        01000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x01), 2);
+    
+    // register[2] = register[1] operation[1] ccc = 1998
+    // should be multiply since register 01 contains 02
+    // register[2] = register[1] * ccc = 1998
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        01FFFFFF
+        01000002
+        CC0C0000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x02), 0x1998);
+    
+    // register[3] = register[2] / register[1] = ccc
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        12000000
+        03000000
+        02010003"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x03), 0xCCC);
+    
+    // register[55] = isqrt(register[2]) = 80
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        13000000
+        10000000
+        02000055"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x55), 80);
+}
+
 
 #[test]
 fn test_reload_all() {
@@ -897,3 +993,4 @@ fn test_reload_all() {
         0A000000",
     );
 }
+

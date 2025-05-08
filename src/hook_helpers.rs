@@ -152,11 +152,21 @@ pub unsafe fn read_ptr_no_check<T>(addr : usize) -> T
     unsafe { std::ptr::read_unaligned(ptr) }
 }
 
+const ADDR_MIN : usize = 0x00010000;
+
+#[cfg(not(test))]
+const ADDR_MAX : usize = 0x80000000;
+
+// while testing we're not in the address space of the game's exe so the norm ADDR_MAX doesnt really work right
+#[cfg(test)]
+const ADDR_MAX : usize = 0xFFFFFFFFFFF;
+
 pub unsafe fn read_ptr<T>(addr : usize) -> Option<T>
     where T : Copy
 {
     // check nullness among other things
-    if addr < 0x00010000 || addr >= 0x80000000 {
+    
+    if addr < ADDR_MIN || addr >= ADDR_MAX {
         None
     } else {
         Some(unsafe { read_ptr_no_check(addr) })
