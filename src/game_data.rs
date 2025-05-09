@@ -104,12 +104,21 @@ pub fn get_p2_char3_ptr() -> usize
 
 */
 
-pub struct CharNodeTree
+#[derive(PartialEq, Eq, Debug, Clone)]
+#[repr(C)]
+pub struct CharNode
 {
     ptr : usize,
+    // +0x08 is character ptr
+    // +0x10 is next charnode ptr
+    // +0x18 is prev charnode ptr
+    // +0x20 is next parent charnode ptr
+    // +0x28 is prev parent charnode ptr
+    // +0x30 is parent charnode ptr
+    // +0x38 is child charnode ptr
 }
 
-impl CharNodeTree {
+impl CharNode {
     pub fn player1() -> Self {
         Self {
             ptr : unsafe { read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x58) }
@@ -121,10 +130,64 @@ impl CharNodeTree {
             ptr : unsafe { read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x328) }
         }
     }
+    
+    pub fn from_char(character : &Char) -> Option<Self> {
+        for c in CharNode::all_nodes() {
+            if c.char_ptr() == character.ptr
+            {
+                return Some(c);
+            }
+        }
+        
+        None
+    }
+    
+    fn char_ptr(&self) -> usize
+    {
+        unsafe {
+            read_usize(self.ptr + 0x08)
+        }
+    }
+    
+    fn get_char(&self) -> Char
+    {
+        Char::new(self.char_ptr())
+    }
+    
+    fn all_nodes() -> core::iter::Chain<Self, Self>
+    {
+        CharNode::player1().chain(CharNode::player2())
+    }
+    
+    fn parent(&self) -> Option<Self> {
+        let ptr = unsafe {
+            read_usize(self.ptr + 0x30) as *const usize
+        };
+        
+        if ptr.is_null() {
+            None
+        } else {
+            Some(Self {
+                ptr : ptr as usize,
+            })
+        }
+    }
+    
+    // the actual character that is being controlled by the player
+    fn true_ancestor(self : CharNode) -> CharNode {
+        let mut current = self;
+        loop {
+            if let Some(parent) = current.parent() {
+                current = parent;
+            } else {
+                return current;
+            }
+        }
+    }
 }
 
-impl Iterator for CharNodeTree {
-    type Item = Char;
+impl Iterator for CharNode {
+    type Item = CharNode;
     
     fn next(&mut self) -> Option<Self::Item> {
         let next_ptr = unsafe {
@@ -136,14 +199,11 @@ impl Iterator for CharNodeTree {
         } else {
             let next_ptr = next_ptr as usize;
             
-            let char_ptr = unsafe {
-                read_usize(self.ptr + 0x08)
-            };
+            let out = Some(self.clone());
             
             self.ptr = next_ptr;
             
-            
-            Some(Char::new(char_ptr))
+            out
         }
     }
 }
@@ -257,15 +317,15 @@ impl Char {
     
     pub fn identify_team(&self) -> Team
     {
-        for c in CharNodeTree::player1() {
-            if self.ptr == c.ptr
+        for c in CharNode::player1() {
+            if self.ptr == c.char_ptr()
             {
                 return Team::Player1;
             }
         }
         
-        for c in CharNodeTree::player2() {
-            if self.ptr == c.ptr
+        for c in CharNode::player2() {
+            if self.ptr == c.char_ptr()
             {
                 return Team::Player2;
             }
@@ -273,24 +333,6 @@ impl Char {
         
         
         return Team::Unknown;
-        /*
-        // FIXME - traverse the player character / team nodes properly
-        if self.ptr == get_p1_char1_ptr() {
-            Team::Player1
-        } else if self.ptr == get_p1_char2_ptr() {
-            Team::Player1
-        } else if self.ptr == get_p1_char3_ptr() {
-            Team::Player1
-        } else if self.ptr == get_p2_char1_ptr() {
-            Team::Player2
-        } else if self.ptr == get_p2_char2_ptr() {
-            Team::Player2
-        } else if self.ptr == get_p2_char3_ptr() {
-            Team::Player2
-        } else {
-            Team::Unknown
-        }
-        */
     }
     
     
@@ -355,26 +397,39 @@ impl Char {
     
     pub fn set_health(&mut self, value : f32)
     {
+        // child characters don't have their own health
+        let true_ancestor = CharNode::from_char(self)
+            .and_then(|node| Some(node.true_ancestor().get_char()))
+            .unwrap_or(self.clone());
+        
         if !value.is_finite()
         {
             return;
         }
         
-        if self.get_health() <= 0.1 {
+        if true_ancestor.get_health() <= 0.1 {
             return;
         }
         
         // FIXME - clamp this appropriately for the player's max health
         if value < MIN_HEALTH {
-            self.set_health_raw(MIN_HEALTH);
+            true_ancestor.set_health_raw(MIN_HEALTH);
         } else {
-            self.set_health_raw(value);
+            true_ancestor.set_health_raw(value);
         }
+    }
+    
+    pub fn get_health(&self) -> f32
+    {
+        // child characters don't have their own health
+        CharNode::from_char(self)
+            .and_then(|c| Some(c.true_ancestor().get_char().get_health_raw()))
+            .unwrap_or(0.0)
     }
     
     offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50);
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
-    offset_getter_and_setter!(get_health, set_health_raw, f32, 0x1550);
+    offset_getter_and_setter!(get_health_raw, set_health_raw, f32, 0x1550);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
     offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
