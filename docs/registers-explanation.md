@@ -79,8 +79,6 @@ FF is the input register, AA is the destination
 so
 register[AA] = sin(register[FF])
 
-AH HELL I JUST NOTICED A BUG where the register type on unaries is always the destination type so you cant do a float input for an integer output or vice versa. i'll fix that at some point
-
 ## 66_14 is a unary operation with an immediate
 ```
 66000000
@@ -144,6 +142,36 @@ this always uses their point character.
 same format again
 so now the opponent's yellow health (10000000) has been set to whatever number is in register 33.
 this always uses their point character.
+
+## Float replacement
+You should be able to replace any floating point value in another command with a register by just putting XXFFFFFF instead of the float. This doesn't work with integers unfortunately.
+
+so for example, you can use the 01_B1 dash physics command and set the character's x velociy to the contents of register 01 like so:
+```
+01000000
+B1000000
+03000000
+00000000
+06000000
+06000000
+06000000
+01FFFFFF
+000080BF
+00000000
+```
+
+## Operation replacement
+Just like the float replacement above, you can use XXFFFFFF for operations. For fancy-ish math, so for operations 66_11 through 66_14 you can replace the operation with the contents of a register
+```
+66000000
+12000000
+18FFFFFF
+15160017
+```
+So this will load what operation to do from register 18. So if register 18 = 0, then this will do
+`register[17] = register[15] + register[16]`
+But if register 18 is, say, 3, then it would do
+`register[17] = register[15] / register[16]`
 
 ## list of operations/variables
 this is all the binary operations. if you want any not listed here feel free to ask, no promises though
