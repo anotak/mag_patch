@@ -286,7 +286,7 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                     }
                 );
             }
-        }, 
+        },
         AnoCmd::LoadVarIntoRegister => {
             load_var_into_register(exe_char.clone(), exe_char, command_ptr)
         }, 

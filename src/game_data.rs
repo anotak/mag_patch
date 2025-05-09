@@ -59,6 +59,7 @@ macro_rules! offset_getter_and_setter_flag {
     }
 }
 
+/*
 pub fn get_p1_char1_ptr() -> usize
 {
     unsafe {
@@ -100,6 +101,53 @@ pub fn get_p2_char3_ptr() -> usize
         read_usize(read_usize(read_usize(read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x328) + 0x10) + 0x8) + 0x18)
     }
 }
+
+*/
+
+pub struct CharNodeTree
+{
+    ptr : usize,
+}
+
+impl CharNodeTree {
+    pub fn player1() -> Self {
+        Self {
+            ptr : unsafe { read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x58) }
+        }
+    }
+    
+    pub fn player2() -> Self {
+        Self {
+            ptr : unsafe { read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x328) }
+        }
+    }
+}
+
+impl Iterator for CharNodeTree {
+    type Item = Char;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_ptr = unsafe {
+            read_usize(self.ptr + 0x10) as *const usize
+        };
+        
+        if next_ptr.is_null() {
+            None
+        } else {
+            let next_ptr = next_ptr as usize;
+            
+            let char_ptr = unsafe {
+                read_usize(self.ptr + 0x08)
+            };
+            
+            self.ptr = next_ptr;
+            
+            
+            Some(Char::new(char_ptr))
+        }
+    }
+}
+
 
 pub fn get_p1_point_char_ptr() -> usize
 {
@@ -209,6 +257,23 @@ impl Char {
     
     pub fn identify_team(&self) -> Team
     {
+        for c in CharNodeTree::player1() {
+            if self.ptr == c.ptr
+            {
+                return Team::Player1;
+            }
+        }
+        
+        for c in CharNodeTree::player2() {
+            if self.ptr == c.ptr
+            {
+                return Team::Player2;
+            }
+        }
+        
+        
+        return Team::Unknown;
+        /*
         // FIXME - traverse the player character / team nodes properly
         if self.ptr == get_p1_char1_ptr() {
             Team::Player1
@@ -225,6 +290,7 @@ impl Char {
         } else {
             Team::Unknown
         }
+        */
     }
     
     
