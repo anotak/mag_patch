@@ -356,11 +356,10 @@ impl Player {
         Self::new(get_p2_ptr())
     }
     
-    #[expect(dead_code)]
-    pub fn get_point_char(&self) -> Self {
-        Self {
-            ptr : unsafe { read_usize(self.ptr + 0x48) }
-        }
+    pub fn point_char(&self) -> Char {
+        let ptr = unsafe { read_usize(self.ptr + 0x48) };
+        
+        Char::new(ptr)
     }
     
     pub fn set_meter(&mut self, value : f32)

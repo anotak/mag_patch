@@ -32,6 +32,8 @@ pub enum AnoCmd
     StoreVarFromRegister = 0x16,
     LoadOpponentVarIntoRegister = 0x17,
     StoreOpponentVarFromRegister = 0x18,
+    LoadPointVarIntoRegister = 0x19,
+    StorePointVarFromRegister = 0x1A,
     
     SuckX = 0x50,
 }
@@ -299,6 +301,19 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::StoreOpponentVarFromRegister => {
             if let Some(opponent) = exe_char.get_opponent_point_char() {
                 store_var_into_register(exe_char, opponent, command_ptr)
+            }
+        },
+        // TODO - i think i've already decided i want to replace these two
+        AnoCmd::LoadPointVarIntoRegister => {
+            let player = exe_char.player();
+            if let Some(character) = player.and_then(|player| Some(player.point_char())) {
+                load_var_into_register(exe_char, character, command_ptr)
+            }
+        }, 
+        AnoCmd::StorePointVarFromRegister => {
+            let player = exe_char.player();
+            if let Some(character) = player.and_then(|player| Some(player.point_char())) {
+                store_var_into_register(exe_char, character, command_ptr)
             }
         },
         AnoCmd::SuckX => {
