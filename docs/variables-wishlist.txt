@@ -1,0 +1,9 @@
+variables to load/store into registers wishlist
+- xfactor time (need to also use max xfactor time??)
+- xfactor active?
+- xfactor level?
+- number of times hit
+- damage scaling
+- hitstun scaling
+- reset groundbounce
+- reset wallbounce used
