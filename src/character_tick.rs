@@ -86,9 +86,9 @@ macro_rules! character_ticks {
                 {
                     crate::character_tick::generic_character_tick(crate::game_data::Char::new(owner as usize));
                     
-                    TickFn::with_original($addr, |original| {
-                        unsafe { original.call(owner) }
-                    })
+                    let hook = TickFn::get_original_from_original_addr($addr);
+                    
+                    unsafe { hook.call(owner) };
                 }
             )+
         }

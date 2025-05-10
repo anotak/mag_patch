@@ -120,7 +120,8 @@ fn get_register_f32(ptr : usize, register : usize) -> f32
 
 #[test]
 fn test_commands() {
-    make_hook(replaced_fake_execute_anmchr_command as usize, crate::execute_anmchr_command as usize).unwrap();
+    crate::ExecuteAnmChrCommandFn::make_hook(replaced_fake_execute_anmchr_command as usize, crate::execute_anmchr_command).unwrap();
+    
     
     let mut char_struct = [0; TEST_CHARACTER_STRUCT_SIZE];
     let ptr = char_struct.as_mut_ptr() as usize;

@@ -1,8 +1,7 @@
 // we're going to be doing a lot of unsafe stuff so yeah
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{Arc};
 use std::ffi::CString;
 use std::io::Cursor;
 
@@ -10,43 +9,24 @@ use windows::core::s;
 use windows::core::{PCSTR};
 use windows::Win32::UI::WindowsAndMessaging;
 
-use retour::{RawDetour,GenericDetour};
+use retour::{GenericDetour};
 
 use crate::error::*;
 
 /// base address of umvc3.exe
 pub const EXE_BASE : usize = 0x140000000;
 
-/// we keep our hooked functions around in this so we can call the originals and so on
-pub static HOOKS : LazyLock<Mutex<HashMap<usize, RawDetour>>> = LazyLock::new(|| {
-    Mutex::new(HashMap::new())
-});
-
-pub fn make_hook(replaced_ptr : usize, replacer_ptr : usize) -> Result<(), Box<dyn std::error::Error>>
-{
-    let key = replacer_ptr;
-    
-    let mut hooks = HOOKS.lock()?;
-    
-    if hooks.contains_key(&key)
-    {
-        panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", key));
-    }
-    
-    let hook = unsafe { RawDetour::new( replaced_ptr as *const (), replacer_ptr as *const ())? };
-    
-    unsafe { hook.enable()? };
-    
-    hooks.insert(key as usize, hook);
-    
-    Ok(())
-}
-
 pub trait Hook {
     fn make_hook(replaced_ptr : usize, replacer : Self) -> Result<(), Box<dyn std::error::Error>> where Self: retour::Function;
-    fn with_original<F, T>(original : usize, func : F) -> T
-        where Self: retour::Function,
-                F : FnOnce(&GenericDetour<Self>) -> T;
+    
+    /// used in cases where the optimizer might replace our many replacer functions with one function (character ticks)
+    fn get_original_from_original_addr(original : usize)
+        -> Arc<GenericDetour<Self>>
+        where Self: retour::Function;
+    
+    fn get_original(replacer : Self)
+        -> Arc<GenericDetour<Self>>
+        where Self: retour::Function;
 }
 
 macro_rules! typed_hooks {
@@ -54,10 +34,15 @@ macro_rules! typed_hooks {
         // type associated statics are not allowed otherwise we'd put this in the impl
         mod $statics_mod {
             use std::collections::HashMap;
-            use std::sync::{LazyLock, Mutex};
+            use std::sync::{LazyLock, Mutex, Arc};
             use retour::{GenericDetour};
             
-            pub static HOOKS : LazyLock<Mutex<HashMap<usize, GenericDetour<$hooked_func_type>>>> = LazyLock::new(|| {
+            pub static HOOKS : LazyLock<Mutex<HashMap<usize, Arc<GenericDetour<$hooked_func_type>>>>> = LazyLock::new(|| {
+                Mutex::new(HashMap::new())
+            });
+            
+            // if you have the address of the replace get the address of the replaced from here
+            pub static HOOKS_REPLACER : LazyLock<Mutex<HashMap<usize, usize>>> = LazyLock::new(|| {
                 Mutex::new(HashMap::new())
             });
         }
@@ -65,45 +50,70 @@ macro_rules! typed_hooks {
         impl Hook for $hooked_func_type {
             fn make_hook(replaced_ptr : usize, replacer : Self) -> Result<(), Box<dyn std::error::Error>> where Self: retour::Function
             {
-                let mut hooks = $statics_mod::HOOKS.lock()?;
-                
-                if hooks.contains_key(&(replaced_ptr as usize))
                 {
-                    let addr = replaced_ptr as usize;
+                    let mut hooks_replacer = $statics_mod::HOOKS_REPLACER.lock()?;
+                    let replacer_ptr = replacer as usize;
                     
-                    panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", addr));
+                    hooks_replacer.insert(replacer_ptr, replaced_ptr);
                 }
                 
-                let replaced_ptr = unsafe { std::mem::transmute(replaced_ptr) };
-                
-                let hook = unsafe { GenericDetour::new( replaced_ptr, replacer)? };
-                
-                unsafe { hook.enable()? };
-                
-                hooks.insert(replaced_ptr as usize, hook);
+                {
+                    let mut hooks = $statics_mod::HOOKS.lock()?;
+                    
+                    if hooks.contains_key(&(replaced_ptr as usize))
+                    {
+                        let addr = replaced_ptr as usize;
+                        
+                        panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", addr));
+                    }
+                    
+                    let replaced = unsafe { std::mem::transmute(replaced_ptr) };
+                    
+                    let hook = unsafe { GenericDetour::new( replaced, replacer)? };
+                    
+                    unsafe { hook.enable()? };
+                    
+                    hooks.insert(replaced_ptr, Arc::new(hook));
+                }
                 
                 Ok(())
             }
             
-            fn with_original<F,T>(original : usize, function : F) -> T
-                where Self: retour::Function,
-                F : FnOnce(&GenericDetour<Self>) -> T
+            fn get_original_from_original_addr(original : usize)
+                -> Arc<GenericDetour<Self>>
+                where Self: retour::Function
             {
-                // i'd love to have real error handling instead of just .unwrapping
-                // but also i dont know how i'd even begin to do that in this environ
-                // of a hooked function
-                
                 let hooks = $statics_mod::HOOKS.lock().unwrap();
                 
                 let hook = hooks.get(&(original as usize)).unwrap();
                 
-                function(hook)
+                hook.clone()
+            }
+            
+            fn get_original(replacer : Self)
+                -> Arc<GenericDetour<Self>>
+                where Self: retour::Function
+            {
+                let ptr = replacer as usize;
+                
+                let original = {
+                    let hooks_replacer = $statics_mod::HOOKS_REPLACER.lock().unwrap();
+                    
+                    hooks_replacer.get(&ptr).unwrap().clone()
+                };
+                
+                let hooks = $statics_mod::HOOKS.lock().unwrap();
+                
+                let hook = hooks.get(&original).unwrap();
+                
+                hook.clone()
             }
         }
     }
 }
 
 typed_hooks!(crate::character_tick::TickFn, __tick_hooks);
+typed_hooks!(crate::ExecuteAnmChrCommandFn, __execute_anmchr_command);
 
 
 /// call in your hooked functions to get the original function
