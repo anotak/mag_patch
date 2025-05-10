@@ -190,18 +190,15 @@ impl Iterator for CharNode {
     type Item = CharNode;
     
     fn next(&mut self) -> Option<Self::Item> {
-        let next_ptr = unsafe {
-            read_usize(self.ptr + 0x10) as *const usize
-        };
         
-        if next_ptr.is_null() {
+        if (self.ptr as *const usize).is_null() {
             None
         } else {
-            let next_ptr = next_ptr as usize;
-            
             let out = Some(self.clone());
             
-            self.ptr = next_ptr;
+            self.ptr = unsafe {
+                read_usize(self.ptr + 0x10)
+            };
             
             out
         }
