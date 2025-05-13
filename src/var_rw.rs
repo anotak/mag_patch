@@ -153,6 +153,34 @@ var_rw! {
         },
     ),
     (
+        0x11,
+        RedHealth,
+        |ptr| {
+            Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
+                c.get_red_health()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid_ancestor(ptr, (), |mut c| {
+                c.set_red_health(new_value as f32)
+            })
+        },
+    ),
+    (
+        0x12,
+        MaxHealth,
+        |ptr| {
+            Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
+                c.get_max_health()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid_ancestor(ptr, (), |mut c| {
+                c.set_max_health(new_value as i32)
+            })
+        },
+    ),
+    (
         0x20,
         XPosition,
         |ptr| {

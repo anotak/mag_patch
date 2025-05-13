@@ -399,7 +399,8 @@ impl fmt::Display for Char {
 }
 
 /// minimum health as enforced by the game, apparently
-pub const MIN_HEALTH : f32 = 2.0;
+pub const MIN_HEALTH_I32 : i32 = 2;
+pub const MIN_HEALTH : f32 = MIN_HEALTH_I32 as f32;
 
 impl Char {
     pub fn new(ptr : usize) -> Self {
@@ -603,34 +604,73 @@ impl Char {
     
     pub fn set_health(&mut self, value : f32)
     {
-        // child characters don't have their own health
-        let true_ancestor = CharNode::from_char(self)
-            .and_then(|node| Some(node.true_ancestor().get_char()))
-            .unwrap_or(self.clone());
-        
         if !value.is_finite()
         {
             return;
         }
         
-        if true_ancestor.get_health() <= 0.1 {
+        if self.get_health() <= 0.1 {
             return;
         }
         
-        // FIXME - clamp this appropriately for the player's max health
+        let max_health = self.get_max_health() as f32;
+        
         if value < MIN_HEALTH {
-            true_ancestor.set_health_raw(MIN_HEALTH);
+            self.set_health_raw(MIN_HEALTH);
+        } else if value > max_health {
+            self.set_health_raw(max_health);
         } else {
-            true_ancestor.set_health_raw(value);
+            self.set_health_raw(value);
         }
     }
     
-    pub fn get_health(&self) -> f32
+    pub fn set_red_health(&mut self, value : f32)
     {
-        // child characters don't have their own health
-        CharNode::from_char(self)
-            .and_then(|c| Some(c.true_ancestor().get_char().get_health_raw()))
-            .unwrap_or(0.0)
+        if !value.is_finite()
+        {
+            return;
+        }
+        
+        let health = self.get_health();
+        
+        if health <= 0.1 {
+            return;
+        }
+        
+        let max_health = self.get_max_health() as f32;
+        
+        if value < health {
+            self.set_red_health_raw(health);
+        } else if value > max_health {
+            self.set_red_health_raw(max_health);
+        } else {
+            self.set_red_health_raw(value);
+        }
+    }
+    
+    pub fn set_max_health(&mut self, value : i32)
+    {
+        let current_health = self.get_health();
+        if current_health <= 0.1 {
+            return;
+        }
+        
+        let value = if value < MIN_HEALTH_I32 { MIN_HEALTH_I32 } else { value };
+        
+        {
+            let value = value as f32;
+            
+            if current_health > value {
+                self.set_health(value);
+            }
+            
+            let current_red_health = self.get_red_health();
+            if current_red_health > value {
+                self.set_red_health(value);
+            }
+        }
+        
+        self.set_max_health_raw(value);
     }
     
     pub fn get_char_order(&self) -> CharOrder
@@ -645,7 +685,9 @@ impl Char {
     
     offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50);
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
-    offset_getter_and_setter!(get_health_raw, set_health_raw, f32, 0x1550);
+    offset_getter_and_setter!(get_max_health, set_max_health_raw, i32, 0x154c);
+    offset_getter_and_setter!(get_health, set_health_raw, f32, 0x1550);
+    offset_getter_and_setter!(get_red_health, set_red_health_raw, f32, 0x1558);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
     offset_getter_and_setter!(get_char_order_raw, set_char_order, i32, 0x2db0);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
