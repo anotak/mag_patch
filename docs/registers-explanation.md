@@ -110,6 +110,49 @@ that 40000000 is the variable. in this case 40 means your super meter. there's a
 so let's say you have 5 bars, then register 23 will get set to 50000.
 
 
+to get an opponent's register you use:
+```
+66000000
+17000000
+008000A4
+21000000
+```
+same format again, except on the third line that "80" controls it being the opponent.
+
+so now register A4 has the opponent's Y position (21000000)
+this always uses their point character.
+
+you can control your teammates' stuff too with these values:
+```rs
+    /// Current executing character. if on opponent's team this will also be the point. For child characters, some variables like health will be on actual playable character that summoned them
+    Me = 0x00,
+    /// My team's point character. This can be the current character.
+    Point = 0x01,
+    /// Assist 1. if character is dead then get 0s. This can be the current character.
+    Assist1NoFallBack = 0x02,
+    /// Assist 2. if character is dead then get 0s. This can be the current character.
+    Assist2NoFallBack = 0x03,
+    /// Assist 1. if character is dead then get point. This can be the current character.
+    Assist1WithFallback = 0x04,
+    /// Assist 2. if character is dead then get assist 1. if assist 1 is dead get point. This can be the current character.
+    Assist2WithFallback = 0x05,
+    /// If current (or parent) is point character, then assist 1. If current (or parent) is assist 1, then point character. If only 1 char left, then just get 0s.
+    Char1NotMe = 0x06,
+    /// If this character is a child, get the parent-most parent (or parent's parent, etc), otherwise just get the current character.
+    TrueAncestor = 0x07,
+    /// If this character is a child, get the parent, otherwise just get the current character.
+    Parent = 0x08,
+```
+to get the opponent's stuff, just add 80, so your opponent's Assist 1 would be 82.
+
+So to load your assist 1's health into register 44, you'd do:
+```
+66000000
+15000000
+00020044
+10000000
+```
+
 ## 66_16 is storing a register back into a game variable
 ```
 66000000
@@ -121,27 +164,22 @@ same format, 00 00 00 there doesn't mean anything, FF is the register, 30000000 
 
 so if register FF has 1.7 in it, then that gets converted to an integer (since the counter is an integer), then it gets set to 1. this means you can do 2 more specials in the air.
 
-## 66_17 is loading an *opponent's* variable into a register
-```
-66000000
-17000000
-000000A4
-21000000
-```
-same format again
-so now register A4 has the opponent's Y position (21000000)
-this always uses their point character.
-
-## 66_18 is storing a register into an *opponent's* variable
+and to store into your opponent's stuff:
 ```
 66000000
 18000000
-00000033
+00800033
 10000000
 ```
 same format again
 so now the opponent's yellow health (10000000) has been set to whatever number is in register 33.
 this always uses their point character.
+
+## 66_17 is deleted for now (was opponent load but see 66_15 now)
+
+
+## 66_18 is deleted for now (was opponent store but see 66_16 now)
+
 
 ## Float replacement
 You should be able to replace any floating point value in another command with a register by just putting XXFFFFFF instead of the float. This doesn't work with integers unfortunately.
@@ -175,7 +213,7 @@ But if register 18 is, say, 3, then it would do
 
 ## list of operations/variables
 this is all the binary operations. if you want any not listed here feel free to ask, no promises though
-```
+```rs
 pub enum BinaryOp {
     Add = 0x00,
     Sub = 0x01,
@@ -202,7 +240,7 @@ pub enum BinaryOp {
 ```
 
 this is all the unary operations. if you want any not listed here feel free to ask, no promises though
-```
+```rs
 pub enum UnaryOp {
     Floor = 0x00,
     Ceil = 0x01,
@@ -219,12 +257,14 @@ pub enum UnaryOp {
 }
 ```
 all the game variables. if you want any not listed here feel free to ask, no promises though
-```
+```rs
 pub enum MatchState {
     Timer = 0x00,
     FrameTimerReadOnly = 0x01,
     MatchStateReadOnly = 0x02,
     Health = 0x10,
+    RedHealth = 0x11,
+    MaxHealth = 0x12,
     XPosition = 0x20,
     YPosition = 0x21,
     SpecialAirActionCounter = 0x30,
@@ -232,5 +272,9 @@ pub enum MatchState {
     CharacterComboCounter = 0x32,
     Meter = 0x40,
     TeamComboCounterReadOnly = 0x41,
+    FacingReadOnly = 0xB0,
+    CharOrderReadOnly = 0xB1,
     ConditionRegister = 0xC0,
+    FlyingScreenInstallFlag = 0x1000,
 }
+```
