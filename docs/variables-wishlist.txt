@@ -7,3 +7,4 @@ variables to load/store into registers wishlist
 - hitstun scaling
 - reset groundbounce
 - reset wallbounce used
+- camera position

@@ -142,12 +142,12 @@ var_rw! {
         0x10,
         Health,
         |ptr| {
-            Number::F32(Char::if_valid(ptr, 0.0, |c| {
+            Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
                 c.get_health()
             }))
         },
         |ptr, new_value| {
-            Char::if_valid(ptr, (), |mut c| {
+            Char::if_valid_ancestor(ptr, (), |mut c| {
                 c.set_health(new_value as f32)
             })
         },
@@ -184,12 +184,12 @@ var_rw! {
         0x30,
         SpecialAirActionCounter,
         |ptr| {
-            Number::I32(Char::if_valid(ptr, 0, |c| {
+            Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_special_air_action_counter()
             }))
         },
         |ptr, new_value| {
-            Char::if_valid(ptr, (), |c| {
+            Char::if_valid_ancestor(ptr, (), |c| {
                 c.set_special_air_action_counter(new_value as i32)
             })
         },
@@ -198,12 +198,12 @@ var_rw! {
         0x31,
         NormalAirActionCounter,
         |ptr| {
-            Number::I32(Char::if_valid(ptr, 0, |c| {
+            Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_normal_air_action_counter()
             }))
         },
         |ptr, new_value| {
-            Char::if_valid(ptr, (), |c| {
+            Char::if_valid_ancestor(ptr, (), |c| {
                 c.set_normal_air_action_counter(new_value as i32)
             })
         },
@@ -292,17 +292,14 @@ var_rw! {
         0x1000,
         FlyingScreenInstallFlag,
         |ptr| {
-            Number::I32(Char::if_valid(ptr, 0, |c| {
+            Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 i32_bool(c.get_flying_screen_install())
             }))
         },
         |ptr, new_value| {
-            Char::if_valid(ptr, (), |c| {
+            Char::if_valid_ancestor(ptr, (), |c| {
                 c.set_flying_screen_install(is_i32_true(new_value as i32))
             })
         },
     ),
-    
-    
-    // TODO - special air action counter, normal air action counter, combo counter, camera position
 }
