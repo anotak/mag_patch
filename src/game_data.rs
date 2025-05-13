@@ -3,6 +3,7 @@
 
 use crate::hook_helpers::*;
 use std::fmt;
+use num_derive::FromPrimitive;
 
 const CHAR_NODES_BASE : usize = 0xD44A70;
 const TEAMS_BASE : usize = 0xD47E68;
@@ -11,6 +12,7 @@ const TEAMS_BASE : usize = 0xD47E68;
 macro_rules! offset_getter_and_setter {
     ($getter:ident, $setter:ident, $ty:ty, $offset:expr) => {
         #[allow(dead_code)]
+        #[inline]
         pub fn $getter(&self) -> $ty
         {
             let offset = ($offset) as usize;
@@ -18,6 +20,7 @@ macro_rules! offset_getter_and_setter {
         }
         
         #[allow(dead_code)]
+        #[inline]
         pub fn $setter(&self, value : $ty)
         {
             let offset = ($offset) as usize;
@@ -104,6 +107,74 @@ pub fn get_p2_char3_ptr() -> usize
 
 */
 
+const RELATION_OPPONENT_MASK : u8 = 0x80;
+
+#[derive(Debug)]
+pub enum CharacterRelation
+{
+    Ally(RelationWithinTeam),
+    Opponent(RelationWithinTeam)
+}
+
+#[derive(FromPrimitive, Debug)]
+#[repr(u8)]
+pub enum RelationWithinTeam
+{
+    /// Current executing character. if on opponent's team this will also be the point. For child characters, some variables like health will be on actual playable character that summoned them
+    Me = 0x00,
+    /// My team's point character. This can be the current character.
+    Point = 0x01,
+    /// Assist 1. if character is dead then get 0s. This can be the current character.
+    Assist1NoFallBack = 0x02,
+    /// Assist 2. if character is dead then get 0s. This can be the current character.
+    Assist2NoFallBack = 0x03,
+    /// Assist 1. if character is dead then get point. This can be the current character.
+    Assist1WithFallback = 0x04,
+    /// Assist 2. if character is dead then get assist 1. if assist 1 is dead get point. This can be the current character.
+    Assist2WithFallback = 0x05,
+    /// If current is point character, then assist 1. If current is assist 1, then point character. If only 1 char left, then just get 0s.
+    Char1NotMe = 0x06,
+    /// If this character is a child, get the parent-most parent (or parent's parent, etc), otherwise just get the current character.
+    TrueAncestor = 0x07,
+    /// If this character is a child, get the parent, otherwise just get the current character.
+    Parent = 0x08,
+    
+    /*
+    // TODO - FIXME - grandchildren? also allegedly felicia can have 5? double check
+    /// Child 0. if doesn't exist, then get 0s. If this is a child, get the parent's child
+    Child0 = 0x20,
+    /// Child 1. if doesn't exist, then get 0s. If this is a child, get the parent's child
+    Child1 = 0x21,
+    /// Child 2. if doesn't exist, then get 0s. If this is a child, get the parent's child
+    Child2 = 0x22,
+    */
+}
+
+impl CharacterRelation
+{
+    pub fn decode(byte : u8) -> Self
+    {
+        let relation_within_team = num::FromPrimitive::from_u8(byte & const { !RELATION_OPPONENT_MASK} );
+        
+        let relation_within_team = relation_within_team.unwrap_or(RelationWithinTeam::Me);
+        
+        if (byte & RELATION_OPPONENT_MASK) == RELATION_OPPONENT_MASK {
+            CharacterRelation::Opponent(relation_within_team)
+        } else {
+            CharacterRelation::Ally(relation_within_team)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum CharOrder {
+    Point,
+    Assist1,
+    Assist2,
+    Unknown
+}
+
+
 #[derive(PartialEq, Eq, Debug, Clone)]
 #[repr(C)]
 pub struct CharNode
@@ -142,6 +213,18 @@ impl CharNode {
         None
     }
     
+    #[expect(dead_code)]
+    pub fn root(self) -> Self {
+        let mut current = self;
+        loop {
+            if let Some(prev) = current.next_back() {
+                current = prev;
+            } else {
+                return current;
+            }
+        }
+    }
+    
     fn char_ptr(&self) -> usize
     {
         unsafe {
@@ -173,8 +256,8 @@ impl CharNode {
         }
     }
     
-    // the actual character that is being controlled by the player
-    fn true_ancestor(self : CharNode) -> CharNode {
+    /// the actual character that is being controlled by the player
+    fn true_ancestor(self) -> Self {
         let mut current = self;
         loop {
             if let Some(parent) = current.parent() {
@@ -201,6 +284,29 @@ impl Iterator for CharNode {
             };
             
             out
+        }
+    }
+}
+
+impl DoubleEndedIterator for CharNode {
+    fn next_back(&mut self) -> Option<Self> {
+        let ptr = unsafe {
+            read_usize(self.ptr + 0x18) as *const usize
+        };
+        
+        if ptr.is_null() {
+            None
+        } else {
+            let potential = Self {
+                ptr : ptr as usize,
+            };
+            
+            // there's another charnode inside the team struct that we just never care about
+            if (potential.char_ptr() as *const usize).is_null() {
+                Some(potential)
+            } else {
+                None
+            }
         }
     }
 }
@@ -328,25 +434,128 @@ impl Char {
             }
         }
         
-        
         return Team::Unknown;
     }
-    
     
     pub fn player(&self) -> Option<Player>
     {
         self.identify_team().player()
     }
     
+    pub fn related_character(&self, relation : CharacterRelation) -> Option<Char>
+    {
+        let (relation, base) = match relation
+        {
+            CharacterRelation::Ally(relation) => (relation, Some(self.clone())),
+            CharacterRelation::Opponent(relation) => (relation, self.get_opponent_point_char())
+        };
+        
+        if let Some(base) = base {
+            match relation {
+                RelationWithinTeam::Me => Some(base),
+                RelationWithinTeam::Point => {
+                    if let Some(player) = base.player() {
+                        Some(player.point_char())
+                    } else {
+                        Some(base)
+                    }
+                },
+                RelationWithinTeam::Assist1NoFallBack => {
+                    if let Some(player) = base.player() {
+                        player.assist1_char()
+                    } else {
+                        None
+                    }
+                },
+                RelationWithinTeam::Assist2NoFallBack => {
+                    if let Some(player) = base.player() {
+                        player.assist2_char()
+                    } else {
+                        None
+                    }
+                },
+                RelationWithinTeam::Assist1WithFallback => {
+                    if let Some(player) = base.player() {
+                        Some(player.assist1_char_fallback())
+                    } else {
+                        None
+                    }
+                },
+                RelationWithinTeam::Assist2WithFallback => {
+                    if let Some(player) = base.player() {
+                        Some(player.assist2_char_fallback())
+                    } else {
+                        None
+                    }
+                },
+                RelationWithinTeam::Char1NotMe => {
+                    if let Some(player) = base.player() {
+                        let maybe = player.point_char();
+                        
+                        let ancestor = CharNode::from_char(self).and_then(|c| Some(c.true_ancestor().get_char()));
+                        
+                        if maybe == *self || Some(maybe.clone()) == ancestor {
+                            player.assist1_char()
+                        } else {
+                            Some(maybe)
+                        }
+                    } else {
+                        None
+                    }
+                },
+                RelationWithinTeam::TrueAncestor => {
+                    CharNode::from_char(self).and_then(|c| Some(c.true_ancestor().get_char()))
+                },
+                RelationWithinTeam::Parent => {
+                    CharNode::from_char(self).and_then(
+                        |c| {
+                            c.parent()
+                        }
+                    ).and_then(
+                        |c| {
+                            Some(c.get_char())
+                        }
+                    )
+                },
+            }
+        } else {
+            None
+        }
+    }
+    
     pub fn if_valid<F, T>(addr : usize, default : T, function : F) -> T
         where F : FnOnce(Char) -> T
     {
-        let character = Self { ptr : addr };
-        
-        if character.identify_team() == Team::Unknown {
+        if addr == 0 {
             default
         } else {
-            function(character)
+            let character = Self { ptr : addr };
+            
+            if character.identify_team() == Team::Unknown {
+                default
+            } else {
+                function(character)
+            }
+        }
+    }
+    
+    pub fn if_valid_ancestor<F, T>(addr : usize, default : T, function : F) -> T
+        where F : FnOnce(Char) -> T
+    {
+        if addr == 0 {
+            default
+        } else {
+            let character = Self { ptr : addr };
+            
+            let character = CharNode::from_char(&character)
+                .and_then(|node| Some(node.true_ancestor().get_char()))
+                .unwrap_or(character.clone());
+            
+            if character.identify_team() == Team::Unknown {
+                default
+            } else {
+                function(character)
+            }
         }
     }
     
@@ -424,10 +633,21 @@ impl Char {
             .unwrap_or(0.0)
     }
     
+    pub fn get_char_order(&self) -> CharOrder
+    {
+        match self.get_char_order_raw() {
+            0 => CharOrder::Point,
+            1 => CharOrder::Assist1,
+            2 => CharOrder::Assist2,
+            _ => CharOrder::Unknown,
+        }
+    }
+    
     offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50);
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
     offset_getter_and_setter!(get_health_raw, set_health_raw, f32, 0x1550);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
+    offset_getter_and_setter!(get_char_order_raw, set_char_order, u32, 0x2db0);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
     offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
     offset_getter_and_setter!(get_normal_air_action_counter, set_normal_air_action_counter, i32, 0x4190);
@@ -474,10 +694,57 @@ impl Player {
         Self::new(get_p2_ptr())
     }
     
+    pub fn char_nodes(&self) -> CharNode
+    {
+        CharNode {
+            ptr : unsafe { read_usize(self.ptr + 0x18) }
+        }
+    }
+    
     pub fn point_char(&self) -> Char {
         let ptr = unsafe { read_usize(self.ptr + 0x48) };
         
         Char::new(ptr)
+    }
+    
+    pub fn assist1_char(&self) -> Option<Char> {
+        self.char_nodes().find(
+            |node| {
+                node.get_char().get_char_order() == CharOrder::Assist1
+            }
+        ).map(|node| node.get_char())
+    }
+    
+    pub fn assist2_char(&self) -> Option<Char> {
+        self.char_nodes().find(
+            |node| {
+                node.get_char().get_char_order() == CharOrder::Assist2
+            }
+        ).map(|node| node.get_char())
+    }
+    
+    pub fn assist1_char_fallback(&self) -> Char {
+        if let Some(maybe) = self.assist1_char() {
+            if maybe.get_health() < MIN_HEALTH {
+                self.point_char()
+            } else {
+                maybe
+            }
+        } else {
+            self.point_char()
+        }
+    }
+    
+    pub fn assist2_char_fallback(&self) -> Char {
+        if let Some(maybe) = self.assist2_char() {
+            if maybe.get_health() < MIN_HEALTH {
+                self.assist1_char_fallback()
+            } else {
+                maybe
+            }
+        } else {
+            self.assist1_char_fallback()
+        }
     }
     
     pub fn set_meter(&mut self, value : f32)

@@ -30,10 +30,6 @@ pub enum AnoCmd
     UnaryOperationImmediate = 0x14,
     LoadVarIntoRegister = 0x15,
     StoreVarFromRegister = 0x16,
-    LoadOpponentVarIntoRegister = 0x17,
-    StoreOpponentVarFromRegister = 0x18,
-    LoadPointVarIntoRegister = 0x19,
-    StorePointVarFromRegister = 0x1A,
     
     SuckX = 0x50,
 }
@@ -288,33 +284,10 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             }
         },
         AnoCmd::LoadVarIntoRegister => {
-            load_var_into_register(exe_char.clone(), exe_char, command_ptr)
+            load_var_into_register(exe_char, command_ptr)
         }, 
         AnoCmd::StoreVarFromRegister => {
-            store_var_into_register(exe_char.clone(), exe_char, command_ptr)
-        },
-        AnoCmd::LoadOpponentVarIntoRegister => {
-            if let Some(opponent) = exe_char.get_opponent_point_char() {
-                load_var_into_register(exe_char, opponent, command_ptr)
-            }
-        }, 
-        AnoCmd::StoreOpponentVarFromRegister => {
-            if let Some(opponent) = exe_char.get_opponent_point_char() {
-                store_var_into_register(exe_char, opponent, command_ptr)
-            }
-        },
-        // TODO - i think i've already decided i want to replace these two
-        AnoCmd::LoadPointVarIntoRegister => {
-            let player = exe_char.player();
-            if let Some(character) = player.and_then(|player| Some(player.point_char())) {
-                load_var_into_register(exe_char, character, command_ptr)
-            }
-        }, 
-        AnoCmd::StorePointVarFromRegister => {
-            let player = exe_char.player();
-            if let Some(character) = player.and_then(|player| Some(player.point_char())) {
-                store_var_into_register(exe_char, character, command_ptr)
-            }
+            store_var_into_register(exe_char, command_ptr)
         },
         AnoCmd::SuckX => {
             use character_extensions::SuckOpponent;
@@ -335,45 +308,69 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
 }
 
 
-fn load_var_into_register(storage_character : Char, variable_character : Char, command_ptr : usize)
+fn load_var_into_register(storage_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
     
-    cursor.seek(SeekFrom::Current(3)).unwrap();
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
+    
+    let variable_character = storage_character.related_character(character_relation);
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
     let destination = cursor.read_u8().unwrap();
     
     let destination_type = RegisterType::identify(destination);
     
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
+    
+    
     storage::with(
         storage_character.get_ptr(),
         |store| {
             match destination_type {
                 RegisterType::F32 => {
-                    let result = var_rw::MatchState::load_f32(variable_character.get_ptr(), var);
+                    let result = match variable_character {
+                        Some(ref variable_character) => var_rw::MatchState::load_f32(variable_character.get_ptr(), var),
+                        None => 0.0,
+                    };
                     
                     store.set_f32_register(destination, result);
                     
-                    variable_character.set_condition_register(result as i32);
+                    variable_character.map(|c| c.set_condition_register(result as i32));
                 },
                 RegisterType::I32 => {
-                    let result = var_rw::MatchState::load_i32(variable_character.get_ptr(), var);
+                    let result = match variable_character {
+                        Some(ref variable_character) => var_rw::MatchState::load_i32(variable_character.get_ptr(), var),
+                        None => 0,
+                    };
                     
                     store.set_i32_register(destination, result);
                     
-                    variable_character.set_condition_register(result);
+                    variable_character.map(|c| c.set_condition_register(result));
                 },
             };
         }
     );
 }
 
-fn store_var_into_register(storage_character : Char, variable_character : Char,  command_ptr : usize)
+fn store_var_into_register(storage_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
     
-    cursor.seek(SeekFrom::Current(3)).unwrap();
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
+    
+    let variable_character = {
+        match storage_character.related_character(character_relation) {
+            Some(variable_character) => variable_character,
+            // just early out if we def cant figure out what character we're doing this to
+            None => return,
+        }
+    };
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
     let source = cursor.read_u8().unwrap();
     
     let source_type = RegisterType::identify(source);
