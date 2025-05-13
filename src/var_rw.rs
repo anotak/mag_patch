@@ -271,6 +271,18 @@ var_rw! {
             // don't set
         },
     ),
+    (
+        0xB1,
+        CharOrderReadOnly,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_char_order_raw()
+            }))
+        },
+        |_, _| {
+            // don't set
+        },
+    ),
     
     (
         0xC0,

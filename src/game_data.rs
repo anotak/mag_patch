@@ -647,7 +647,7 @@ impl Char {
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
     offset_getter_and_setter!(get_health_raw, set_health_raw, f32, 0x1550);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
-    offset_getter_and_setter!(get_char_order_raw, set_char_order, u32, 0x2db0);
+    offset_getter_and_setter!(get_char_order_raw, set_char_order, i32, 0x2db0);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
     offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
     offset_getter_and_setter!(get_normal_air_action_counter, set_normal_air_action_counter, i32, 0x4190);
