@@ -32,7 +32,7 @@ pub fn panic(error : Box<dyn std::error::Error>)
 {
     let backtrace = std::backtrace::Backtrace::force_capture();
     
-    let msg = format!("mag_patch error:\n{}\n{}",error.to_string(),backtrace);
+    let msg = format!("mag_patch error:\n{}\n{}",error,backtrace);
     let msg = CString::new(msg).unwrap();
     
     unsafe {

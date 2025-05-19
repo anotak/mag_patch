@@ -52,8 +52,8 @@ pub fn with<F, T>(key : usize, function : F) -> T
     result
 }
 
-pub fn with_no_make<F>(key : usize, function : F) -> ()
-    where F : FnOnce(&mut CharStore) -> ()
+pub fn with_no_make<F>(key : usize, function : F)
+    where F : FnOnce(&mut CharStore)
 {
     let mut storage = CHAR_STORAGE.lock().unwrap();
     

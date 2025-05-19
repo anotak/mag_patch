@@ -24,11 +24,7 @@ pub fn is_f32_true(test : f32) -> bool
 
 pub fn is_i32_true(test : i32) -> bool
 {
-    if test == 0 {
-        false
-    } else {
-        true
-    }
+    test != 0
 }
 
 pub fn f32_bool(test : bool) -> f32

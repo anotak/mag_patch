@@ -30,6 +30,7 @@ macro_rules! var_rw {
             )+
         }
         
+        #[expect(clippy::unnecessary_cast)]
         impl $type_name {
             
             fn load(owner_ptr : usize, var : u32) -> Number
@@ -130,13 +131,13 @@ var_rw! {
         0x01,
         FrameTimerReadOnly,
         |_| {  Number::F32(match_state::get_match_frame_time()) },
-        |_, _| { () },
+        |_, _| { },
     ),
     (
         0x02,
         MatchStateReadOnly,
         |_| {  Number::I32(match_state::get_match_state() as i32) },
-        |_, _| { () },
+        |_, _| { },
     ),
     (
         0x10,

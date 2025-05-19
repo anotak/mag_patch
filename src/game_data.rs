@@ -512,9 +512,9 @@ impl Char {
                         |c| {
                             c.parent()
                         }
-                    ).and_then(
+                    ).map(
                         |c| {
-                            Some(c.get_char())
+                            c.get_char()
                         }
                     )
                 },

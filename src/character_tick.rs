@@ -1,10 +1,11 @@
-/// the base game's char specific update functions are all in here, we're just hooking all of them to override all of them
+//! the base game's char specific update functions are all in here, we're just hooking all of them to override all of them
+
+#![deny(unsafe_op_in_unsafe_fn)]
 
 use crate::game_data::*;
 use crate::storage;
 use std::sync::{LazyLock, Mutex};
 
-#[deny(unsafe_op_in_unsafe_fn)]
 
 use crate::match_state::*;
 

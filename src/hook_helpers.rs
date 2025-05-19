@@ -67,7 +67,7 @@ macro_rules! typed_hooks {
                         panic_msg(format!("major mag_patch error: to hook address {:#X} with duplicate ptr", addr));
                     }
                     
-                    let replaced = unsafe { std::mem::transmute(replaced_ptr) };
+                    let replaced = unsafe { std::mem::transmute::<usize, $hooked_func_type>(replaced_ptr) };
                     
                     let hook = unsafe { GenericDetour::new( replaced, replacer)? };
                     
