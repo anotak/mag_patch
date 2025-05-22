@@ -182,6 +182,17 @@ var_rw! {
         },
     ),
     (
+        0x13,
+        AnmChrIdReadonly,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_anmchr_id()
+            }))
+        },
+        |_, _| {
+        },
+    ),
+    (
         0x20,
         XPosition,
         |ptr| {
@@ -252,6 +263,20 @@ var_rw! {
         },
     ),
     (
+        0x33,
+        AssistCooldown,
+        |ptr| {
+            Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
+                c.get_assist_cooldown()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid_ancestor(ptr, (), |mut c| {
+                c.set_assist_cooldown(new_value as f32)
+            })
+        },
+    ),
+    (
         0x40,
         Meter,
         |ptr| {
@@ -304,12 +329,26 @@ var_rw! {
         0xB1,
         CharOrderReadOnly,
         |ptr| {
-            Number::I32(Char::if_valid(ptr, 0, |c| {
+            Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_char_order_raw()
             }))
         },
         |_, _| {
             // don't set
+        },
+    ),
+    (
+        0xB2,
+        AssistType,
+        |ptr| {
+            Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
+                c.get_assist_type()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid_ancestor(ptr, (), |mut c| {
+                c.set_assist_type(new_value as i32)
+            })
         },
     ),
     
@@ -324,6 +363,21 @@ var_rw! {
         |ptr, new_value| {
             Char::if_valid(ptr, (), |c| {
                 c.set_condition_register(new_value as i32)
+            })
+        },
+    ),
+    
+    (
+        0xF0,
+        AirGroundStateFlags,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_air_ground_state_flags()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_air_ground_state_flags(new_value as i32)
             })
         },
     ),

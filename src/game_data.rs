@@ -683,16 +683,41 @@ impl Char {
         }
     }
     
+    pub fn set_assist_type(&mut self, value : i32)
+    {
+        if value < 0 {
+            self.set_assist_type_raw(0)
+        } else if value > 2 {
+            self.set_assist_type_raw(2)
+        } else {
+            self.set_assist_type_raw(value)
+        }
+    }
+    
+    pub fn set_assist_cooldown(&mut self, value : f32)
+    {
+        if value < 0.0 {
+            self.set_assist_cooldown_raw(0.0)
+        } else {
+            self.set_assist_cooldown_raw(value)
+        }
+    }
+    
     offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50);
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
+    offset_getter_and_setter!(get_anmchr_id, set_anmchr_id, i32, 0x1310);
     offset_getter_and_setter!(get_max_health, set_max_health_raw, i32, 0x154c);
     offset_getter_and_setter!(get_health, set_health_raw, f32, 0x1550);
     offset_getter_and_setter!(get_red_health, set_red_health_raw, f32, 0x1558);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
+    offset_getter_and_setter!(get_air_ground_state_flags, set_air_ground_state_flags, i32, 0x14f4);
     offset_getter_and_setter!(get_char_order_raw, set_char_order, i32, 0x2db0);
+    offset_getter_and_setter!(get_assist_type, set_assist_type_raw, i32, 0x4190);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
-    offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
     offset_getter_and_setter!(get_normal_air_action_counter, set_normal_air_action_counter, i32, 0x4190);
+    offset_getter_and_setter!(get_special_air_action_counter, set_special_air_action_counter, i32, 0x41a0);
+    offset_getter_and_setter!(get_assist_cooldown, set_assist_cooldown_raw, f32, 0x41ac);
+    
     
     
     offset_getter_and_setter_flag!(get_flying_screen_install, set_flying_screen_install, u8, 0x1509, 0x04);
