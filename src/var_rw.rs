@@ -17,7 +17,7 @@ macro_rules! var_rw {
     {
         { $type_name:ident };
         
-        $( ( $id:literal, $name:ident, $read:expr, $write:expr $(,)*) ),+
+        $( ( $id:literal, $(#[$($attrss:tt)*])* $name:ident, $read:expr, $write:expr $(,)*) ),+
         $(,)*
     } => {
         use num_derive::FromPrimitive;
@@ -26,6 +26,7 @@ macro_rules! var_rw {
         pub enum $type_name
         {
             $(
+                $(#[$($attrss)*])*
                 $name = $id,
             )+
         }
@@ -123,12 +124,14 @@ var_rw! {
     
     (
         0x00,
+        /// The game timer, as in 0-99. -1 if the timer is infinite.
         Timer,
         |_| {  Number::F32(match_state::get_match_game_time()) },
         |_, new_value| { match_state::set_match_game_time(new_value as f32); }
     ),
     (
         0x01,
+        /// Counts up from the start of the current match state once per frame
         FrameTimerReadOnly,
         |_| {  Number::F32(match_state::get_match_frame_time()) },
         |_, _| { },
@@ -183,6 +186,7 @@ var_rw! {
     ),
     (
         0x13,
+        /// Currently executing anmchr index
         AnmChrIdReadonly,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
@@ -194,6 +198,7 @@ var_rw! {
     ),
     (
         0x20,
+        /// 0.0 is the middle of the stage
         XPosition,
         |ptr| {
             Number::F32(Char::if_valid(ptr, 0.0, |c| {
@@ -208,6 +213,7 @@ var_rw! {
     ),
     (
         0x21,
+        /// Floor is 0.0, upward is positive
         YPosition,
         |ptr| {
             Number::F32(Char::if_valid(ptr, 0.0, |c| {
@@ -222,6 +228,7 @@ var_rw! {
     ),
     (
         0x30,
+        /// counts up from 0 every time you do a special in the air. is used to limit specials to 3 normally
         SpecialAirActionCounter,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
@@ -236,6 +243,7 @@ var_rw! {
     ),
     (
         0x31,
+        /// counts up from 0 for every time you switch button strength in an air chain. is used to limit how much you can chain in normal jump mode
         NormalAirActionCounter,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
@@ -250,6 +258,7 @@ var_rw! {
     ),
     (
         0x32,
+        /// combo counter for just this current character
         CharacterComboCounter,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
@@ -264,6 +273,7 @@ var_rw! {
     ),
     (
         0x33,
+        /// the extra cooldown off assist this specific character has
         AssistCooldown,
         |ptr| {
             Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
@@ -278,6 +288,7 @@ var_rw! {
     ),
     (
         0x40,
+        /// super meter. 50000.0 is the max. 10000.0 is one bar
         Meter,
         |ptr| {
             Number::F32(Char::if_valid(ptr, 0.0, |c| {
@@ -298,6 +309,7 @@ var_rw! {
     ),
     (
         0x41,
+        /// the combo counter for the whole team. read only because this is derived from the character specific combo counters.
         TeamComboCounterReadOnly,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
@@ -314,6 +326,11 @@ var_rw! {
     ),
     (
         0x42,
+        /// Inputs as flags:
+        /// 1 = fwd, 2 = bwd, 4 = up, 8 = down,
+        /// 0x10 = l, 0x20 = m, 0x40 = h, 0x80 = s,
+        /// 0x100 = a1, 0x200 = a2,
+        /// 0x100000 = taunt
         InputsReadOnly,
         |ptr| {
             Number::I32(Char::if_valid_point(ptr, 0, |c| {
@@ -326,6 +343,7 @@ var_rw! {
     ),
     (
         0x43,
+        /// controller forward / backward as a number, +1 is holding forward, -1 is holding backward, 0 is neutral
         InputsForwardBackwardReadOnly,
         |ptr| {
             Number::I32(Char::if_valid_point(ptr, 0, |c| {
@@ -338,6 +356,7 @@ var_rw! {
     ),
     (
         0x44,
+        /// controller up / down as a number, +1 is holding up, -1 is holding down, 0 is neutral
         InputsUpDownReadOnly,
         |ptr| {
             Number::I32(Char::if_valid_point(ptr, 0, |c| {
@@ -351,6 +370,7 @@ var_rw! {
     
     (
         0xB0,
+        /// 1 if facing left, 0 if facing right
         FacingReadOnly,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
@@ -363,6 +383,7 @@ var_rw! {
     ),
     (
         0xB1,
+        /// current position on the team. 0 = point character. 1 = assist 1. 2 = assist 2.
         CharOrderReadOnly,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
@@ -375,6 +396,7 @@ var_rw! {
     ),
     (
         0xB2,
+        /// current assist type. 0 = alpha, 1 = beta, 2 = gamma
         AssistType,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
@@ -390,6 +412,7 @@ var_rw! {
     
     (
         0xC0,
+        /// the condition register used by commands like 0_46 (rng) or 1_92 (check dhc)
         ConditionRegister,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
@@ -405,6 +428,7 @@ var_rw! {
     
     (
         0xF0,
+        /// the flags that are affected by the 1_2f - 1_34 commands
         AirGroundStateFlags,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
@@ -421,6 +445,7 @@ var_rw! {
     
     (
         0x1000,
+        /// the flying screen install flag, which is normally set by launching the opponent. if it's 1 then a jump S will cause flying screen and a hard kd
         FlyingScreenInstallFlag,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
