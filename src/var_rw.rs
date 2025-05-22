@@ -312,6 +312,42 @@ var_rw! {
             // don't set
         },
     ),
+    (
+        0x42,
+        InputsReadOnly,
+        |ptr| {
+            Number::I32(Char::if_valid_point(ptr, 0, |c| {
+                c.get_inputs_raw()
+            }))
+        },
+        |_, _| {
+            // don't set
+        },
+    ),
+    (
+        0x43,
+        InputsForwardBackwardReadOnly,
+        |ptr| {
+            Number::I32(Char::if_valid_point(ptr, 0, |c| {
+                c.get_input_axis_forward_backward()
+            }))
+        },
+        |_, _| {
+            // don't set
+        },
+    ),
+    (
+        0x44,
+        InputsUpDownReadOnly,
+        |ptr| {
+            Number::I32(Char::if_valid_point(ptr, 0, |c| {
+                c.get_input_axis_up_down()
+            }))
+        },
+        |_, _| {
+            // don't set
+        },
+    ),
     
     (
         0xB0,

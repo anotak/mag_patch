@@ -560,6 +560,22 @@ impl Char {
         }
     }
     
+    pub fn if_valid_point<F, T>(addr : usize, default : T, function : F) -> T
+        where F : FnOnce(Char) -> T
+    {
+        if addr == 0 {
+            default
+        } else {
+            let character = Self { ptr : addr };
+            
+            if let Some(player) = character.player() {
+                function(player.point_char())
+            } else {
+                default
+            }
+        }
+    }
+    
     pub fn get_opponent_point_char(&self) -> Option<Char>
     {
         let op_team = self.identify_team().opposite();
@@ -703,6 +719,32 @@ impl Char {
         }
     }
     
+    pub fn get_input_axis_up_down(&self) -> i32
+    {
+        let inputs = self.get_inputs_raw();
+        
+        if (inputs & 0x04) == 0x04 {
+            1
+        } else if (inputs & 0x08) == 0x08 {
+            -1
+        } else {
+            0
+        }
+    }
+    
+    pub fn get_input_axis_forward_backward(&self) -> i32
+    {
+        let inputs = self.get_inputs_raw();
+        
+        if (inputs & 0x01) == 0x01 {
+            1
+        } else if (inputs & 0x02) == 0x02 {
+            -1
+        } else {
+            0
+        }
+    }
+    
     offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50);
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
     offset_getter_and_setter!(get_anmchr_id, set_anmchr_id, i32, 0x1310);
@@ -711,6 +753,13 @@ impl Char {
     offset_getter_and_setter!(get_red_health, set_red_health_raw, f32, 0x1558);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
     offset_getter_and_setter!(get_air_ground_state_flags, set_air_ground_state_flags, i32, 0x14f4);
+    // also 21dc, 21e0, 21e8 ??
+    // also this only seems to get set on point chars
+    // 1 = fwd, 2 = bwd, 4 = up, 8 = down,
+    // 0x10 = l, 0x20 = m, 0x40 = h, 0x80 = s,
+    // 0x100 = a1, 0x200 = a2,
+    // 0x100000 = taunt
+    offset_getter_and_setter!(get_inputs_raw, set_inputs_raw, i32, 0x21d8);
     offset_getter_and_setter!(get_char_order_raw, set_char_order, i32, 0x2db0);
     offset_getter_and_setter!(get_assist_type, set_assist_type_raw, i32, 0x4190);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
