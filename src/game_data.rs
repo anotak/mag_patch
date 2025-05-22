@@ -753,6 +753,11 @@ impl Char {
     offset_getter_and_setter!(get_red_health, set_red_health_raw, f32, 0x1558);
     offset_getter_and_setter!(get_condition_register, set_condition_register, i32, 0x13C4);
     offset_getter_and_setter!(get_air_ground_state_flags, set_air_ground_state_flags, i32, 0x14f4);
+    offset_getter_and_setter!(get_left_right_flags, set_left_right_flags, i32, 0x14f8);
+    offset_getter_and_setter!(get_invincibility_flags, set_invincibility_flags, i32, 0x14fc);
+    offset_getter_and_setter!(get_special_flags, set_special_flags, i32, 0x1500);
+    // maybe 1_47 properties would be here too at 0x1504??
+    offset_getter_and_setter!(get_partner_flags, set_partner_flags, i32, 0x1508);
     // also 21dc, 21e0, 21e8 ??
     // also this only seems to get set on point chars
     // 1 = fwd, 2 = bwd, 4 = up, 8 = down,

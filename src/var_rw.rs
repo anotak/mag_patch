@@ -441,6 +441,67 @@ var_rw! {
             })
         },
     ),
+    (
+        0xF1,
+        /// the flags that are affected by the 1_35 - 1_3a commands
+        LeftRightFlags,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_left_right_flags()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_left_right_flags(new_value as i32)
+            })
+        },
+    ),
+    (
+        0xF2,
+        /// the flags that are affected by the 1_3b - 1_40 commands
+        InvincibilityFlags,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_invincibility_flags()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_invincibility_flags(new_value as i32)
+            })
+        },
+    ),
+    (
+        0xF3,
+        /// the flags that are affected by the 1_41 - 1_46 commands
+        SpecialFlags,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_special_flags()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_special_flags(new_value as i32)
+            })
+        },
+    ),
+    // 0xF4 unused but it might be the 1_47 properties one day
+    (
+        0xF5,
+        /// the flags that are affected by the 1_4D-1_52 commands
+        PartnerFlags,
+        |ptr| {
+            Number::I32(Char::if_valid(ptr, 0, |c| {
+                c.get_partner_flags()
+            }))
+        },
+        |ptr, new_value| {
+            Char::if_valid(ptr, (), |c| {
+                c.set_partner_flags(new_value as i32)
+            })
+        },
+    ),
     
     
     (
