@@ -113,7 +113,7 @@ so let's say you have 5 bars, then register 23 will get set to 50000.
 to get an opponent's register you use:
 ```
 66000000
-17000000
+15000000
 008000A4
 21000000
 ```
@@ -167,7 +167,7 @@ so if register FF has 1.7 in it, then that gets converted to an integer (since t
 and to store into your opponent's stuff:
 ```
 66000000
-18000000
+16000000
 00800033
 10000000
 ```
