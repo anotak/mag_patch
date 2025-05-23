@@ -6,7 +6,7 @@ use crate::math::*;
 macro_rules! binary_operators {
     
     {
-        $( ( $id:literal, $name:ident,  $float_func:expr, $int_func:expr $(,)* ) ),+
+        $( ( $(#[$($attrss1:tt)*])* $id:literal, $(#[$($attrss2:tt)*])* $name:ident,  $float_func:expr, $int_func:expr $(,)* ) ),+
         $(,)*
     } => {
         use num_derive::FromPrimitive;
@@ -15,6 +15,8 @@ macro_rules! binary_operators {
         pub enum BinaryOp
         {
             $(
+                $(#[$($attrss1)*])*
+                $(#[$($attrss2)*])*
                 $name = $id,
             )+
         }
@@ -159,21 +161,26 @@ macro_rules! binary_operators {
 // lhs means left hand side
 binary_operators! {
     (
+        /// addition
         0x00, Add,
         |lhs, rhs| { lhs + rhs },
         |lhs : i32, rhs : i32| { lhs.wrapping_add(rhs) }
     ),
     (
+        /// subtraction
         0x01, Sub,
         |lhs, rhs| { lhs - rhs },
         |lhs : i32, rhs : i32| { lhs.wrapping_sub(rhs) }
     ),
     (
+        /// multiplication
         0x02, Mul,
         |lhs, rhs| { lhs * rhs },
         |lhs : i32, rhs : i32| { lhs.wrapping_mul(rhs) }
     ),
     (
+        /// division
+        /// note: if the rhs is 0, the result will be 0
         0x03, Div,
         |lhs, rhs| {
             if rhs != 0.0 {
@@ -191,7 +198,8 @@ binary_operators! {
         }
     ),
     (
-        0x04, Mod,
+        /// takes the remainder of division
+        0x04, Remainder,
         |lhs, rhs| {
             if rhs != 0.0 {
                 lhs % rhs
@@ -210,17 +218,20 @@ binary_operators! {
     
     
     (
+        /// Minimum, the smaller of the two numbers
         0x10, Min,
         |lhs : f32, rhs| { lhs.min(rhs) },
         |lhs : i32, rhs : i32| { lhs.min(rhs) }
     ),
     (
+        /// Maximum, the larger of the two numbers
         0x11, Max,
         |lhs : f32, rhs| { lhs.max(rhs) },
         |lhs : i32, rhs : i32| { lhs.max(rhs) },
     ),
     
     (
+        /// absolute difference. absolute value of (left hand side - right hand side)
         0x20, AbsDiff,
         |lhs : f32, rhs : f32| {
             abs_diff(lhs,rhs)
@@ -235,6 +246,7 @@ binary_operators! {
         },
     ),
     (
+        /// copies the sign from the right hand side. if right hand side is positive, then result is the left hand side. if the right hand side is negative, then the result is -left hand side.
         0x21, CopySign,
         |lhs : f32, rhs : f32| {
             lhs.copysign(rhs)
@@ -257,6 +269,8 @@ binary_operators! {
     
     // bitwise operations
     (
+        /// [bitwise and](https://en.wikipedia.org/wiki/Bitwise_operation#AND)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xB0, BitwiseAnd,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits() & rhs.to_bits())
@@ -264,6 +278,8 @@ binary_operators! {
         |lhs : i32, rhs : i32| { lhs & rhs }
     ),
     (
+        /// [bitwise or](https://en.wikipedia.org/wiki/Bitwise_operation#OR)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xB1, BitwiseOr,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits() | rhs.to_bits())
@@ -271,6 +287,8 @@ binary_operators! {
         |lhs : i32, rhs : i32| { lhs | rhs }
     ),
     (
+        /// [bitwise or](https://en.wikipedia.org/wiki/Bitwise_operation#XOR)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xB2, BitwiseXor,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits() ^ rhs.to_bits())
@@ -278,6 +296,8 @@ binary_operators! {
         |lhs : i32, rhs : i32| { lhs ^ rhs }
     ),
     (
+        /// [sign-extending arithmetic shift left](https://en.wikipedia.org/wiki/Arithmetic_shift)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xB3, ShiftLeft,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits().wrapping_shl(rhs as u32))
@@ -285,6 +305,8 @@ binary_operators! {
         |lhs : i32, rhs : i32| { lhs.wrapping_shl(rhs as u32) }
     ),
     (
+        /// [sign-extending arithmetic shift right](https://en.wikipedia.org/wiki/Arithmetic_shift)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xb4, ShiftRight,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits().wrapping_shr(rhs as u32))
@@ -292,6 +314,8 @@ binary_operators! {
         |lhs : i32, rhs : i32| { lhs.wrapping_shr(rhs as u32) }
     ),
     (
+        /// [rotate left](https://en.wikipedia.org/wiki/Circular_shift)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xb5, RotateLeft,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits().rotate_left(rhs as u32))
@@ -299,6 +323,8 @@ binary_operators! {
         |lhs : i32, rhs : i32| { lhs.rotate_left(rhs as u32) }
     ),
     (
+        /// [rotate right](https://en.wikipedia.org/wiki/Circular_shift)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
         0xb6, RotateRight,
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits().rotate_right(rhs as u32))
@@ -307,6 +333,8 @@ binary_operators! {
     ),
     
     (
+        /// equality operator. approximate for floating point numbers within 0.000001 due to [floating point imprecision](https://en.wikipedia.org/wiki/Floating-point_arithmetic#Accuracy_problems)
+        /// true results are 1 and false are 0
         0xC0, EqualityApproximate,
         |lhs : f32, rhs : f32| {
             f32_bool(near_eq(lhs, rhs))
@@ -316,6 +344,8 @@ binary_operators! {
         }
     ),
     (
+        /// left hand side < right hand side
+        /// true results are 1 and false are 0
         0xC1, LessThan,
         |lhs : f32, rhs : f32| {
             f32_bool(lhs < rhs)
@@ -325,6 +355,8 @@ binary_operators! {
         }
     ),
     (
+        /// left hand side <= right hand side
+        /// true results are 1 and false are 0
         0xC2, LessThanEqual,
         |lhs : f32, rhs : f32| {
             f32_bool(lhs <= rhs)
@@ -334,6 +366,8 @@ binary_operators! {
         }
     ),
     (
+        /// left hand side > right hand side
+        /// true results are 1 and false are 0
         0xC3, GreaterThan,
         |lhs : f32, rhs : f32| {
             f32_bool(lhs > rhs)
@@ -343,6 +377,8 @@ binary_operators! {
         }
     ),
     (
+        /// left hand side >= right hand side
+        /// true results are 1 and false are 0
         0xC4, GreaterThanEqual,
         |lhs : f32, rhs : f32| {
             f32_bool(lhs >= rhs)
