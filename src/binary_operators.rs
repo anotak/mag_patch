@@ -298,18 +298,18 @@ binary_operators! {
     (
         /// [sign-extending arithmetic shift left](https://en.wikipedia.org/wiki/Arithmetic_shift)
         /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
-        0xB3, ShiftLeft,
+        0xB3, ShiftLeftSignExtend,
         |lhs : f32, rhs : f32| {
-            f32::from_bits(lhs.to_bits().wrapping_shl(rhs as u32))
+            f32::from_bits((lhs.to_bits() as i32).wrapping_shl(rhs as u32) as u32)
         },
         |lhs : i32, rhs : i32| { lhs.wrapping_shl(rhs as u32) }
     ),
     (
         /// [sign-extending arithmetic shift right](https://en.wikipedia.org/wiki/Arithmetic_shift)
         /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
-        0xb4, ShiftRight,
+        0xb4, ShiftRightSignExtend,
         |lhs : f32, rhs : f32| {
-            f32::from_bits(lhs.to_bits().wrapping_shr(rhs as u32))
+            f32::from_bits((lhs.to_bits() as i32).wrapping_shr(rhs as u32) as u32)
         },
         |lhs : i32, rhs : i32| { lhs.wrapping_shr(rhs as u32) }
     ),
@@ -320,7 +320,7 @@ binary_operators! {
         |lhs : f32, rhs : f32| {
             f32::from_bits(lhs.to_bits().rotate_left(rhs as u32))
         },
-        |lhs : i32, rhs : i32| { lhs.rotate_left(rhs as u32) }
+        |lhs : i32, rhs : i32| { lhs.rotate_left(rhs as u32)}
     ),
     (
         /// [rotate right](https://en.wikipedia.org/wiki/Circular_shift)
@@ -330,6 +330,24 @@ binary_operators! {
             f32::from_bits(lhs.to_bits().rotate_right(rhs as u32))
         },
         |lhs : i32, rhs : i32| { lhs.rotate_right(rhs as u32) }
+    ),
+    (
+        /// [zero-extending logical shift left](https://en.wikipedia.org/wiki/Logical_shift)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
+        0xB7, ShiftLeftZeroExtend,
+        |lhs : f32, rhs : f32| {
+            f32::from_bits(lhs.to_bits().wrapping_shl(rhs as u32))
+        },
+        |lhs : i32, rhs : i32| { (lhs as u32).wrapping_shl(rhs as u32) as i32 }
+    ),
+    (
+        /// [zero-extending logical shift right](https://en.wikipedia.org/wiki/Logical_shift)
+        /// note that doing this on floating point numbers won't be very useful as mag_patch resets any NaN/infinity floats to 0.0
+        0xb8, ShiftRightZeroExtend,
+        |lhs : f32, rhs : f32| {
+            f32::from_bits(lhs.to_bits().wrapping_shr(rhs as u32))
+        },
+        |lhs : i32, rhs : i32| { (lhs as u32).wrapping_shr(rhs as u32) as i32 }
     ),
     
     (
