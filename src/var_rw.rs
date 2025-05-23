@@ -17,9 +17,10 @@ macro_rules! var_rw {
     {
         { $type_name:ident };
         
-        $( ( $(#[$($attrss1:tt)*])* $id:literal, $(#[$($attrss2:tt)*])* $name:ident, $read:expr, $write:expr $(,)*) ),+
+        $( ( $(#[$($attrss1:tt)*])* $id:literal, $(#[$($attrss2:tt)*])* $name:ident, $default_type:ident, $read:expr, $write:expr $(,)*) ),+
         $(,)*
     } => {
+        use crate::storage::RegisterType;
         use num_derive::FromPrimitive;
         #[derive(FromPrimitive)]
         #[repr(u32)]
@@ -49,6 +50,22 @@ macro_rules! var_rw {
                     func(owner_ptr)
                 } else {
                     Number::I32(0)
+                }
+            }
+            
+            
+            pub fn get_number_type(var : u32) -> Option<RegisterType>
+            {
+                let var = num::FromPrimitive::from_u32(var);
+                
+                if let Some(var) = var {
+                    match var {
+                        $(
+                        $type_name::$name => Some(RegisterType::$default_type),
+                        )+
+                    }
+                } else {
+                    None
                 }
             }
             
@@ -126,22 +143,26 @@ var_rw! {
     (
         /// The game timer, as in 0-99. -1 if the timer is infinite.
         0x00, Timer,
+        F32,
         |_| {  Number::F32(match_state::get_match_game_time()) },
         |_, new_value| { match_state::set_match_game_time(new_value as f32); }
     ),
     (
         /// Counts up from the start of the current match state once per frame
         0x01, FrameTimerReadOnly,
+        F32,
         |_| {  Number::F32(match_state::get_match_frame_time()) },
         |_, _| { },
     ),
     (
         0x02, MatchStateReadOnly,
+        I32,
         |_| {  Number::I32(match_state::get_match_state() as i32) },
         |_, _| { },
     ),
     (
         0x10, Health,
+        F32,
         |ptr| {
             Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
                 c.get_health()
@@ -155,6 +176,7 @@ var_rw! {
     ),
     (
         0x11, RedHealth,
+        F32,
         |ptr| {
             Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
                 c.get_red_health()
@@ -168,6 +190,7 @@ var_rw! {
     ),
     (
         0x12, MaxHealth,
+        F32,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_max_health()
@@ -182,6 +205,7 @@ var_rw! {
     (
         /// Currently executing anmchr index
         0x13, AnmChrIdReadonly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_anmchr_id()
@@ -193,6 +217,7 @@ var_rw! {
     (
         /// 0.0 is the middle of the stage
         0x20, XPosition,
+        F32,
         |ptr| {
             Number::F32(Char::if_valid(ptr, 0.0, |c| {
                 c.get_x_pos()
@@ -207,6 +232,7 @@ var_rw! {
     (
         /// Floor is 0.0, upward is positive
         0x21, YPosition,
+        F32,
         |ptr| {
             Number::F32(Char::if_valid(ptr, 0.0, |c| {
                 c.get_y_pos()
@@ -221,6 +247,7 @@ var_rw! {
     (
         /// counts up from 0 every time you do a special in the air. is used to limit specials to 3 normally
         0x30, SpecialAirActionCounter,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_special_air_action_counter()
@@ -235,6 +262,7 @@ var_rw! {
     (
         /// counts up from 0 for every time you switch button strength in an air chain. is used to limit how much you can chain in normal jump mode
         0x31, NormalAirActionCounter,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_normal_air_action_counter()
@@ -249,6 +277,7 @@ var_rw! {
     (
         /// combo counter for just this current character
         0x32, CharacterComboCounter,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_character_combo_counter()
@@ -263,6 +292,7 @@ var_rw! {
     (
         /// the extra cooldown off assist this specific character has
         0x33, AssistCooldown,
+        F32,
         |ptr| {
             Number::F32(Char::if_valid_ancestor(ptr, 0.0, |c| {
                 c.get_assist_cooldown()
@@ -277,6 +307,7 @@ var_rw! {
     (
         /// super meter. 50000.0 is the max. 10000.0 is one bar
         0x40, Meter,
+        F32,
         |ptr| {
             Number::F32(Char::if_valid(ptr, 0.0, |c| {
                 if let Some(player) = c.player() {
@@ -297,6 +328,7 @@ var_rw! {
     (
         /// the combo counter for the whole team. read only because this is derived from the character specific combo counters.
         0x41, TeamComboCounterReadOnly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 if let Some(player) = c.player() {
@@ -318,6 +350,7 @@ var_rw! {
         /// 0x100 = a1, 0x200 = a2,
         /// 0x100000 = taunt
         InputsReadOnly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_point(ptr, 0, |c| {
                 c.get_inputs_raw()
@@ -330,6 +363,7 @@ var_rw! {
     (
         /// controller forward / backward as a number, +1 is holding forward, -1 is holding backward, 0 is neutral
         0x43, InputsForwardBackwardReadOnly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_point(ptr, 0, |c| {
                 c.get_input_axis_forward_backward()
@@ -342,6 +376,7 @@ var_rw! {
     (
         /// controller up / down as a number, +1 is holding up, -1 is holding down, 0 is neutral
         0x44, InputsUpDownReadOnly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_point(ptr, 0, |c| {
                 c.get_input_axis_up_down()
@@ -355,6 +390,7 @@ var_rw! {
     (
         /// 1 if facing left, 0 if facing right
         0xB0, FacingReadOnly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 (c.get_facing() == crate::game_data::Facing::Left).from_bool()
@@ -367,6 +403,7 @@ var_rw! {
     (
         /// current position on the team. 0 = point character. 1 = assist 1. 2 = assist 2.
         0xB1, CharOrderReadOnly,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_char_order_raw()
@@ -379,6 +416,7 @@ var_rw! {
     (
         /// current assist type. 0 = alpha, 1 = beta, 2 = gamma
         0xB2, AssistType,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 c.get_assist_type()
@@ -394,6 +432,7 @@ var_rw! {
     (
         /// the condition register used by commands like 0_46 (rng) or 1_92 (check dhc)
         0xC0, ConditionRegister,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_condition_register()
@@ -409,6 +448,7 @@ var_rw! {
     (
         /// the flags that are affected by the 1_2f - 1_34 commands
         0xF0, AirGroundStateFlags,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_air_ground_state_flags()
@@ -423,6 +463,7 @@ var_rw! {
     (
         /// the flags that are affected by the 1_35 - 1_3a commands
         0xF1, LeftRightFlags,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_left_right_flags()
@@ -437,6 +478,7 @@ var_rw! {
     (
         /// the flags that are affected by the 1_3b - 1_40 commands
         0xF2, InvincibilityFlags,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_invincibility_flags()
@@ -451,6 +493,7 @@ var_rw! {
     (
         /// the flags that are affected by the 1_41 - 1_46 commands
         0xF3, SpecialFlags,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_special_flags()
@@ -466,6 +509,7 @@ var_rw! {
     (
         /// the flags that are affected by the 1_4D-1_52 commands
         0xF5, PartnerFlags,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
                 c.get_partner_flags()
@@ -482,6 +526,7 @@ var_rw! {
     (
         /// note: this is set on the opponent. this the flying screen install flag, which is normally set by launching the opponent. if it's 1 then a jump S will cause flying screen and a hard kd
         0x1000, FlyingScreenInstallFlag,
+        I32,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
                 (c.get_flying_screen_install()).from_bool()

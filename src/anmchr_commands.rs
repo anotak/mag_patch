@@ -30,7 +30,12 @@ pub enum AnoCmd
     UnaryOperationImmediate = 0x14,
     LoadVarIntoRegister = 0x15,
     StoreVarFromRegister = 0x16,
-    
+    StoreVarFromImmediate = 0x17,
+    /*
+    BinaryOperationRegisterVar = 0x18,
+    BinaryOperationImmediateVar = 0x19,
+    UnaryOperationVar = 0x1a,
+    */
     SuckX = 0x50,
 }
 
@@ -287,7 +292,10 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             load_var_into_register(exe_char, command_ptr)
         }, 
         AnoCmd::StoreVarFromRegister => {
-            store_var_into_register(exe_char, command_ptr)
+            store_var_from_register(exe_char, command_ptr)
+        },
+        AnoCmd::StoreVarFromImmediate => {
+            store_var_from_immediate(exe_char, command_ptr)
         },
         AnoCmd::SuckX => {
             use character_extensions::SuckOpponent;
@@ -355,7 +363,7 @@ fn load_var_into_register(storage_character : Char, command_ptr : usize)
     );
 }
 
-fn store_var_into_register(storage_character : Char, command_ptr : usize)
+fn store_var_from_register(storage_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
     
@@ -399,3 +407,44 @@ fn store_var_into_register(storage_character : Char, command_ptr : usize)
     );
 }
 
+
+fn store_var_from_immediate(storage_character : Char, command_ptr : usize)
+{
+    let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 3 }) };
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
+    
+    let variable_character = {
+        match storage_character.related_character(character_relation) {
+            Some(variable_character) => variable_character,
+            // just early out if we def cant figure out what character we're doing this to
+            None => return,
+        }
+    };
+    
+    cursor.seek(SeekFrom::Current(2)).unwrap();
+    
+    let var = cursor.read_u32::<LittleEndian>().unwrap();
+    
+    let variable_type = var_rw::MatchState::get_number_type(var);
+    
+    match variable_type {
+        Some(RegisterType::F32) => {
+            let immediate = storage::with(
+                    storage_character.get_ptr(),
+                    |store| {
+                        store.cursor_read_f32_with_replacement(&mut cursor)
+                    }
+                );
+            
+            var_rw::MatchState::store_f32(variable_character.get_ptr(), var, immediate);
+        },
+        Some(RegisterType::I32) => {
+            let immediate = cursor.read_i32::<LittleEndian>().unwrap();
+            
+            var_rw::MatchState::store_i32(variable_character.get_ptr(), var, immediate);
+        },
+        None => {},
+    };
+}
