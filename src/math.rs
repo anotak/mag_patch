@@ -6,44 +6,69 @@ use std::f32::consts::*;
 
 pub const DEGREES_TO_RADIANS : f32 = PI / 60.0;
 
-pub const I32_TRUE : i32 = 1;
-pub const I32_FALSE : i32 = 0;
-pub const F32_TRUE : f32 = 1.0;
-pub const F32_FALSE : f32 = 0.0;
-
 pub const COMPARISON_EPSILON : f32 = 0.000001;
 
-pub fn is_f32_true(test : f32) -> bool
-{
-    if abs_diff(test,F32_FALSE) < COMPARISON_EPSILON {
-        false
-    } else {
-        true
+pub trait Truthful {
+    const TRUE: Self;
+    const FALSE: Self;
+    
+    fn is_true(self) -> bool;
+}
+
+// want this to be distinct from regular rust From / Into infrastructure because it's not quite the same thing
+pub trait NumFromBool<T> where T : Truthful {
+    fn from_bool(self) -> T;
+}
+
+impl Truthful for i32 {
+    const TRUE : Self = 1;
+    const FALSE : Self = 0;
+    
+
+    fn is_true(self) -> bool
+    {
+        self != Self::FALSE
     }
 }
 
-pub fn is_i32_true(test : i32) -> bool
-{
-    test != 0
-}
-
-pub fn f32_bool(test : bool) -> f32
-{
-    if test {
-        F32_TRUE
-    } else {
-        F32_FALSE
+impl NumFromBool<i32> for bool {
+    fn from_bool(self) -> i32
+    {
+        if self {
+            i32::TRUE
+        } else {
+            i32::FALSE
+        }
     }
 }
 
-pub fn i32_bool(test : bool) -> i32
-{
-    if test {
-        I32_TRUE
-    } else {
-        I32_FALSE
+impl Truthful for f32 {
+    const TRUE : Self = 1.0;
+    const FALSE : Self = 0.0;
+    
+
+    fn is_true(self) -> bool
+    {
+        if abs_diff(self,Self::FALSE) < COMPARISON_EPSILON {
+            false
+        } else {
+            true
+        }
     }
 }
+
+impl NumFromBool<f32> for bool {
+    fn from_bool(self) -> f32
+    {
+        if self {
+            f32::TRUE
+        } else {
+            f32::FALSE
+        }
+    }
+}
+
+
 
 pub fn abs_diff(lhs : f32, rhs : f32) -> f32
 {

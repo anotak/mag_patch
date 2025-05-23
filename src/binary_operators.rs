@@ -355,10 +355,10 @@ binary_operators! {
         /// true results are 1 and false are 0
         0xC0, EqualityApproximate,
         |lhs : f32, rhs : f32| {
-            f32_bool(near_eq(lhs, rhs))
+            (near_eq(lhs, rhs)).from_bool()
         },
         |lhs : i32, rhs : i32| {
-            i32_bool(lhs == rhs)
+            (lhs == rhs).from_bool()
         }
     ),
     (
@@ -366,10 +366,10 @@ binary_operators! {
         /// true results are 1 and false are 0
         0xC1, LessThan,
         |lhs : f32, rhs : f32| {
-            f32_bool(lhs < rhs)
+            (lhs < rhs).from_bool()
         },
         |lhs : i32, rhs : i32| {
-            i32_bool(lhs < rhs)
+            (lhs < rhs).from_bool()
         }
     ),
     (
@@ -377,10 +377,10 @@ binary_operators! {
         /// true results are 1 and false are 0
         0xC2, LessThanEqual,
         |lhs : f32, rhs : f32| {
-            f32_bool(lhs <= rhs)
+            (lhs <= rhs).from_bool()
         },
         |lhs : i32, rhs : i32| {
-            i32_bool(lhs <= rhs)
+            (lhs <= rhs).from_bool()
         }
     ),
     (
@@ -388,10 +388,10 @@ binary_operators! {
         /// true results are 1 and false are 0
         0xC3, GreaterThan,
         |lhs : f32, rhs : f32| {
-            f32_bool(lhs > rhs)
+            (lhs > rhs).from_bool()
         },
         |lhs : i32, rhs : i32| {
-            i32_bool(lhs > rhs)
+            (lhs > rhs).from_bool()
         }
     ),
     (
@@ -399,10 +399,10 @@ binary_operators! {
         /// true results are 1 and false are 0
         0xC4, GreaterThanEqual,
         |lhs : f32, rhs : f32| {
-            f32_bool(lhs >= rhs)
+            (lhs >= rhs).from_bool()
         },
         |lhs : i32, rhs : i32| {
-            i32_bool(lhs >= rhs)
+            (lhs >= rhs).from_bool()
         }
     ),
 }

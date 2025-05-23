@@ -152,8 +152,8 @@ unary_operators! {
         /// 1 if the value is positive
         /// 0 if 0 or negative
         0x30, IsPositive,
-        |value : f32| { f32_bool(value > 0.0) },
-        |value : i32| { i32_bool(value.is_positive()) }
+        |value : f32| { (value > 0.0).from_bool() },
+        |value : i32| { (value.is_positive()).from_bool() }
     ),
     
     (
@@ -171,10 +171,10 @@ unary_operators! {
         /// if 0 then returns 1.0
         0xC0, LogicalNot,
         |value : f32| {
-            f32_bool(!is_f32_true(value))
+            (!value.is_true()).from_bool()
         },
         |value : i32| {
-            i32_bool(!is_i32_true(value))
+            (!value.is_true()).from_bool()
         }
     ),
 }

@@ -357,7 +357,7 @@ var_rw! {
         0xB0, FacingReadOnly,
         |ptr| {
             Number::I32(Char::if_valid(ptr, 0, |c| {
-                i32_bool(c.get_facing() == crate::game_data::Facing::Left)
+                (c.get_facing() == crate::game_data::Facing::Left).from_bool()
             }))
         },
         |_, _| {
@@ -484,12 +484,12 @@ var_rw! {
         0x1000, FlyingScreenInstallFlag,
         |ptr| {
             Number::I32(Char::if_valid_ancestor(ptr, 0, |c| {
-                i32_bool(c.get_flying_screen_install())
+                (c.get_flying_screen_install()).from_bool()
             }))
         },
         |ptr, new_value| {
             Char::if_valid_ancestor(ptr, (), |c| {
-                c.set_flying_screen_install(is_i32_true(new_value as i32))
+                c.set_flying_screen_install((new_value as i32).is_true())
             })
         },
     ),
