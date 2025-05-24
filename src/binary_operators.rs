@@ -10,6 +10,7 @@ macro_rules! binary_operators {
         $(,)*
     } => {
         use num_derive::FromPrimitive;
+        use crate::math::Number;
         #[derive(Debug, Copy, Clone, FromPrimitive)]
         #[repr(u32)]
         pub enum BinaryOp
@@ -21,10 +22,7 @@ macro_rules! binary_operators {
             )+
         }
         
-        // this is all a bit of a mess but we can't use generics for this stuff easily
-        // because there's not really a generic that covers all the potential operations you'd use
-        // so we end up using this macro soup since it just seems like a better solution for this
-        pub fn handle_binary_operation_f32_f32_f32(lhs : f32, rhs : f32, op : BinaryOp) -> f32
+        fn handle_binary_operation_f32_f32_f32(lhs : f32, rhs : f32, op : BinaryOp) -> f32
         {
             let func = match op {
                 $(
@@ -34,114 +32,10 @@ macro_rules! binary_operators {
             
             let float = func(lhs, rhs);
             
-            if float.is_finite() {
-                float
-            } else {
-                0.0
-            }
+            clean_float(float)
         }
         
-        pub fn handle_binary_operation_f32_i32_f32(lhs : f32, rhs : i32, op : BinaryOp) -> f32
-        {
-            let rhs = rhs as f32;
-            let func = match op {
-                $(
-                BinaryOp::$name => $float_func,
-                )+
-            };
-            
-            let float = func(lhs, rhs);
-            
-            if float.is_finite() {
-                float
-            } else {
-                0.0
-            }
-        }
-        
-        pub fn handle_binary_operation_i32_f32_f32(lhs : i32, rhs : f32, op : BinaryOp) -> f32
-        {
-            let lhs = lhs as f32;
-            let func = match op {
-                $(
-                BinaryOp::$name => $float_func,
-                )+
-            };
-            
-            let float = func(lhs, rhs);
-            
-            if float.is_finite() {
-                float
-            } else {
-                0.0
-            }
-        }
-        
-        pub fn handle_binary_operation_i32_i32_f32(lhs : i32, rhs : i32, op : BinaryOp) -> f32
-        {
-            let func = match op {
-                $(
-                BinaryOp::$name => $int_func,
-                )+
-            };
-            
-            func(lhs, rhs) as f32
-        }
-        
-        pub fn handle_binary_operation_f32_f32_i32(lhs : f32, rhs : f32, op : BinaryOp) -> i32
-        {
-            let func = match op {
-                $(
-                BinaryOp::$name => $float_func,
-                )+
-            };
-            
-            let float = func(lhs, rhs);
-            
-            if float.is_finite() {
-                float as i32
-            } else {
-                0
-            }
-        }
-        
-        pub fn handle_binary_operation_f32_i32_i32(lhs : f32, rhs : i32, op : BinaryOp) -> i32
-        {
-            let rhs = rhs as f32;
-            let func = match op {
-                $(
-                BinaryOp::$name => $float_func,
-                )+
-            };
-            
-            let float = func(lhs, rhs);
-            
-            if float.is_finite() {
-                float as i32
-            } else {
-                0
-            }
-        }
-        
-        pub fn handle_binary_operation_i32_f32_i32(lhs : i32, rhs : f32, op : BinaryOp) -> i32
-        {
-            let lhs = lhs as f32;
-            let func = match op {
-                $(
-                BinaryOp::$name => $float_func,
-                )+
-            };
-            
-            let float = func(lhs, rhs);
-            
-            if float.is_finite() {
-                float as i32
-            } else {
-                0
-            }
-        }
-        
-        pub fn handle_binary_operation_i32_i32_i32(lhs : i32, rhs : i32, op : BinaryOp) -> i32
+        fn handle_binary_operation_i32_i32_i32(lhs : i32, rhs : i32, op : BinaryOp) -> i32
         {
             let func = match op {
                 $(
@@ -150,6 +44,90 @@ macro_rules! binary_operators {
             };
             
             func(lhs, rhs)
+        }
+        
+        pub trait BinaryOpHandler<Lhs,Rhs,Answer>
+        {
+            fn operate(self, lhs : Lhs, rhs : Rhs) -> Answer;
+        }
+        
+        impl BinaryOpHandler<i32,i32,i32> for BinaryOp {
+            fn operate(self, lhs : i32, rhs : i32) -> i32
+            {
+                // note that this one uses i32 math
+                handle_binary_operation_i32_i32_i32(lhs, rhs, self)
+            }
+        }
+        
+        impl BinaryOpHandler<i32,i32,f32> for BinaryOp {
+            fn operate(self, lhs : i32, rhs : i32) -> f32
+            {
+                // note that this one uses i32 math
+                handle_binary_operation_i32_i32_i32(lhs, rhs, self) as f32
+            }
+        }
+        
+        impl BinaryOpHandler<i32,f32,i32> for BinaryOp {
+            fn operate(self, lhs : i32, rhs : f32) -> i32
+            {
+                handle_binary_operation_f32_f32_f32(lhs as f32, rhs, self) as i32
+            }
+        }
+        
+        impl BinaryOpHandler<f32,i32,i32> for BinaryOp {
+            fn operate(self, lhs : f32, rhs : i32) -> i32
+            {
+                handle_binary_operation_f32_f32_f32(lhs, rhs as f32, self) as i32
+            }
+        }
+        
+        impl BinaryOpHandler<f32,f32,i32> for BinaryOp {
+            fn operate(self, lhs : f32, rhs : f32) -> i32
+            {
+                handle_binary_operation_f32_f32_f32(lhs, rhs, self) as i32
+            }
+        }
+        
+        impl BinaryOpHandler<f32,f32,f32> for BinaryOp {
+            fn operate(self, lhs : f32, rhs : f32) -> f32
+            {
+                handle_binary_operation_f32_f32_f32(lhs, rhs, self)
+            }
+        }
+        
+        impl BinaryOpHandler<f32,i32,f32> for BinaryOp {
+            fn operate(self, lhs : f32, rhs : i32) -> f32
+            {
+                handle_binary_operation_f32_f32_f32(lhs, rhs as f32, self)
+            }
+        }
+        
+        impl BinaryOpHandler<i32,f32,f32> for BinaryOp {
+            fn operate(self, lhs : i32, rhs : f32) -> f32
+            {
+                handle_binary_operation_f32_f32_f32(lhs as f32, rhs, self)
+            }
+        }
+        
+        impl BinaryOpHandler<Number,Number,f32> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : Number) -> f32
+            {
+                match (lhs, rhs) {
+                    (Number::I32(lhs), Number::I32(rhs)) => self.operate(lhs, rhs),
+                    _ => self.operate(lhs.into_float(), rhs.into_float()),
+                }
+            }
+        }
+        
+        
+        impl BinaryOpHandler<Number,Number,i32> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : Number) -> i32
+            {
+                match (lhs, rhs) {
+                    (Number::I32(lhs), Number::I32(rhs)) => self.operate(lhs, rhs),
+                    _ => self.operate(lhs.into_float(), rhs.into_float()),
+                }
+            }
         }
     }
 }

@@ -13,10 +13,12 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
 
 use crate::character_extensions;
 use crate::binary_operators;
+use crate::binary_operators::BinaryOpHandler;
 use crate::unary_operators;
 use crate::game_data::{Char};
 use crate::reload::Reload;
 use crate::hook_helpers::read_ptr_no_check;
+use crate::math::Number;
 
 /// usize is usually pointer to owning object
 pub static CHAR_STORAGE : LazyLock<Mutex<HashMap<usize, CharStore>>> = LazyLock::new(|| {
@@ -120,6 +122,14 @@ impl CharStore {
         }
     }
     
+    pub fn set_number_register(&mut self, index : u8, value : Number) {
+        match RegisterType::identify(index)
+        {
+            RegisterType::F32 => self.set_f32_register(index, value.into_float()),
+            RegisterType::I32 => self.set_i32_register(index, value.into_int()),
+        }
+    }
+    
     pub fn get_f32_register(&mut self, index : u8) -> f32 {
         if index & F32_REGISTER_MASK == F32_REGISTER_MASK {
             let index = index & F32_REGISTER_UNMASK;
@@ -151,6 +161,15 @@ impl CharStore {
                 Some(list) => list[index as usize],
                 None => DEFAULT_REGISTER_I32,
             }
+        }
+    }
+    
+    
+    pub fn get_number_register(&mut self, index : u8) -> Number {
+        match RegisterType::identify(index)
+        {
+            RegisterType::F32 => Number::F32(self.get_f32_register(index)),
+            RegisterType::I32 => Number::I32(self.get_i32_register(index)),
         }
     }
     
@@ -250,19 +269,17 @@ impl CharStore {
         match ltype
         {
             RegisterType::F32 => {
-                let result = binary_operators::handle_binary_operation_f32_i32_i32(
+                let result = operation.operate(
                     self.get_f32_register(lhs),
-                    rhs_imm,
-                    operation
+                    rhs_imm
                 );
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result as i32);
             },
             RegisterType::I32 => {
-                let result = binary_operators::handle_binary_operation_i32_i32_i32(
+                let result = operation.operate(
                     self.get_i32_register(lhs),
-                    rhs_imm,
-                    operation
+                    rhs_imm
                 );
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);
@@ -277,19 +294,17 @@ impl CharStore {
         match ltype
         {
             RegisterType::F32 => {
-                let result = binary_operators::handle_binary_operation_f32_f32_f32(
+                let result = operation.operate(
                     self.get_f32_register(lhs),
-                    rhs_imm,
-                    operation
+                    rhs_imm
                 );
                 self.set_f32_register(destination, result);
                 self.character.set_condition_register(result as i32);
             },
             RegisterType::I32 => {
-                let result = binary_operators::handle_binary_operation_i32_f32_f32(
+                let result = operation.operate(
                     self.get_i32_register(lhs),
-                    rhs_imm,
-                    operation
+                    rhs_imm
                 );
                 self.set_f32_register(destination, result);
                 self.character.set_condition_register(result as i32);
@@ -306,73 +321,65 @@ impl CharStore {
         match (ltype, rtype, dtype)
         {
             (RegisterType::F32, RegisterType::F32, RegisterType::F32) => {
-                let result = binary_operators::handle_binary_operation_f32_f32_f32(
+                let result = operation.operate(
                     self.get_f32_register(lhs),
-                    self.get_f32_register(rhs),
-                    operation
+                    self.get_f32_register(rhs)
                 );
                 self.set_f32_register(destination, result);
                 self.character.set_condition_register(result as i32);
             },
             (RegisterType::I32, RegisterType::F32, RegisterType::F32) => {
-                let result = binary_operators::handle_binary_operation_i32_f32_f32(
+                let result = operation.operate(
                     self.get_i32_register(lhs),
-                    self.get_f32_register(rhs),
-                    operation
+                    self.get_f32_register(rhs)
                 );
                 self.set_f32_register(destination, result);
                 self.character.set_condition_register(result as i32);
             },
             (RegisterType::F32, RegisterType::I32, RegisterType::F32) => {
-                let result = binary_operators::handle_binary_operation_f32_i32_f32(
+                let result = operation.operate(
                     self.get_f32_register(lhs),
-                    self.get_i32_register(rhs),
-                    operation
+                    self.get_i32_register(rhs)
                 );
                 self.set_f32_register(destination, result);
                 self.character.set_condition_register(result as i32);
             },
             (RegisterType::I32, RegisterType::I32, RegisterType::F32) => {
-                let result = binary_operators::handle_binary_operation_i32_i32_f32(
+                let result = operation.operate(
                     self.get_i32_register(lhs),
-                    self.get_i32_register(rhs),
-                    operation
+                    self.get_i32_register(rhs)
                 );
                 self.set_f32_register(destination, result);
                 self.character.set_condition_register(result as i32);
             },
             (RegisterType::F32, RegisterType::F32, RegisterType::I32) => {
-                let result = binary_operators::handle_binary_operation_f32_f32_i32(
+                let result = operation.operate(
                     self.get_f32_register(lhs),
-                    self.get_f32_register(rhs),
-                    operation
+                    self.get_f32_register(rhs)
                 );
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);
             },
             (RegisterType::I32, RegisterType::F32, RegisterType::I32) => {
-                let result = binary_operators::handle_binary_operation_i32_f32_i32(
+                let result = operation.operate(
                     self.get_i32_register(lhs),
-                    self.get_f32_register(rhs),
-                    operation
+                    self.get_f32_register(rhs)
                 );
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);
             },
             (RegisterType::F32, RegisterType::I32, RegisterType::I32) => {
-                let result = binary_operators::handle_binary_operation_f32_i32_i32(
+                let result = operation.operate(
                     self.get_f32_register(lhs),
-                    self.get_i32_register(rhs),
-                    operation
+                    self.get_i32_register(rhs)
                 );
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);
             },
             (RegisterType::I32, RegisterType::I32, RegisterType::I32) => {
-                let result = binary_operators::handle_binary_operation_i32_i32_i32(
+                let result = operation.operate(
                     self.get_i32_register(lhs),
-                    self.get_i32_register(rhs),
-                    operation
+                    self.get_i32_register(rhs)
                 );
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);

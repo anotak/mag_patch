@@ -102,3 +102,35 @@ pub fn approx_cos(x : f32) -> f32 {
     x
 }
 
+
+pub fn clean_float(float : f32) -> f32 {
+    if float.is_finite() {
+        float
+    } else {
+        0.0
+    }
+}
+
+/// used inside the var_rw! macro to convey type, then whatever cast is needed is done.
+/// also used for registers, similarly
+#[derive(Clone, Copy)]
+pub enum Number {
+    F32(f32),
+    I32(i32)
+}
+
+impl Number {
+    pub fn into_float(self) -> f32 {
+        match self {
+            Number::F32(f) => f,
+            Number::I32(i) => i as f32,
+        }
+    }
+    
+    pub fn into_int(self) -> i32 {
+        match self {
+            Number::F32(f) => f as i32,
+            Number::I32(i) => i,
+        }
+    }
+}

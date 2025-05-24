@@ -6,12 +6,6 @@ use crate::match_state;
 use crate::game_data::Char;
 use crate::math::*;
 
-/// used internally here inside the var_rw! macro to convey type, then whatever cast is needed is done
-enum Number {
-    F32(f32),
-    I32(i32)
-}
-
 macro_rules! var_rw {
     
     {
@@ -66,6 +60,23 @@ macro_rules! var_rw {
                     }
                 } else {
                     None
+                }
+            }
+            
+            pub fn load_number(owner_ptr : usize, var : u32) -> crate::var_rw::Number
+            {
+                use crate::var_rw::Number;
+                
+                match $type_name::load(owner_ptr, var)
+                {
+                    Number::I32(i) => Number::I32(i),
+                    Number::F32(f) => {
+                        Number::F32(if f.is_finite() {
+                            f
+                        } else {
+                            0.0
+                        })
+                    },
                 }
             }
             
