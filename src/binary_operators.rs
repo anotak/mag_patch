@@ -129,6 +129,26 @@ macro_rules! binary_operators {
                 }
             }
         }
+        
+        impl BinaryOpHandler<f32,Number,f32> for BinaryOp {
+            fn operate(self, lhs : f32, rhs : Number) -> f32
+            {
+                match rhs {
+                    Number::I32(rhs) => self.operate(lhs, rhs),
+                    _ => self.operate(lhs, rhs.into_float()),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<i32,Number,i32> for BinaryOp {
+            fn operate(self, lhs : i32, rhs : Number) -> i32
+            {
+                match rhs {
+                    Number::I32(rhs) => self.operate(lhs, rhs),
+                    _ => self.operate(lhs, rhs.into_float()),
+                }
+            }
+        }
     }
 }
 
