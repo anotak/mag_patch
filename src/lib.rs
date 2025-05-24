@@ -63,7 +63,7 @@ fn attach() -> Result<(), Box<dyn std::error::Error>> {
     ExecuteAnmChrCommandFn::make_hook(EXE_BASE + 0xFB7A0, execute_anmchr_command)?;
     
     
-    debug_msg("mag_patch hooking success!\nthis is a hella alpha version 4 please dont share it");
+    debug_msg("mag_patch hooking success!\nthis is a hella alpha version 5 please dont share it");
     
     Ok(())
 }
