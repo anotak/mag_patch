@@ -22,6 +22,24 @@ macro_rules! unary_operators {
             )+
         }
         
+        pub trait UnaryOpHandler<T> {
+            fn operate(self, value : T) -> T;
+        }
+        
+        impl UnaryOpHandler<i32> for UnaryOp {
+            fn operate(self, value : i32) -> i32
+            {
+                operation_i32(value, self)
+            }
+        }
+        
+        impl UnaryOpHandler<f32> for UnaryOp {
+            fn operate(self, value : f32) -> f32
+            {
+                operation_f32(value, self)
+            }
+        }
+        
         pub fn operation_f32(value : f32, op : UnaryOp) -> f32
         {
             let func = match op {

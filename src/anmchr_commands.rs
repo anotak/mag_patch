@@ -14,6 +14,7 @@ use crate::storage::RegisterType;
 use crate::character_extensions;
 use crate::var_rw;
 use crate::binary_operators::{BinaryOp,BinaryOpHandler};
+use crate::unary_operators::{UnaryOp,UnaryOpHandler};
 
 /// This is the number after the 0x66
 /// All commands that start with 0x66 should be ones added by me (anotak). if you want to add commands you should reserve another starting value to prevent conflicts. (game uses commands 0 through 7 inclusive)
@@ -34,9 +35,8 @@ pub enum AnoCmd
     StoreVarFromImmediate = 0x17,
     BinaryOperationRegisterVar = 0x18,
     BinaryOperationImmediateVar = 0x19,
-    /*
     UnaryOperationVar = 0x1a,
-    */
+    
     SuckX = 0x50,
 }
 
@@ -302,7 +302,10 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             binary_operation_register_var(exe_char, command_ptr)
         },
         AnoCmd::BinaryOperationImmediateVar => {
-            binary_operation_register_var(exe_char, command_ptr)
+            binary_operation_immediate_var(exe_char, command_ptr)
+        },
+        AnoCmd::UnaryOperationVar => {
+            unary_operation_var(exe_char, command_ptr)
         },
         AnoCmd::SuckX => {
             use character_extensions::SuckOpponent;
@@ -576,5 +579,50 @@ fn binary_operation_immediate_var(storage_character : Char, command_ptr : usize)
     };
 }
 
-
+fn unary_operation_var(storage_character : Char, command_ptr : usize)
+{
+    let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 4 }) };
+    
+    let operation = storage::with(
+            storage_character.get_ptr(),
+            |store| {
+                store.cursor_read_u32_with_replacement(&mut cursor)
+            }
+        );
+    let operation : Option<UnaryOp> = num::FromPrimitive::from_u32(operation);
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    
+    let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
+    
+    let variable_character = {
+        match storage_character.related_character(character_relation) {
+            Some(variable_character) => variable_character,
+            // just early out if we def cant figure out what character we're doing this to
+            None => return,
+        }
+    };
+    
+    cursor.seek(SeekFrom::Current(2)).unwrap();
+    
+    let var = cursor.read_u32::<LittleEndian>().unwrap();
+    
+    let variable_type = var_rw::MatchState::get_number_type(var);
+    let input = var_rw::MatchState::load_number(variable_character.get_ptr(), var);
+    
+    // these two branches look fairly identical but the type has to be carried through
+    match (variable_type, operation) {
+        (Some(RegisterType::F32), Some(operation)) => {
+            let result = operation.operate(input.into_float());
+            
+            var_rw::MatchState::store_f32(variable_character.get_ptr(), var, result);
+        },
+        (Some(RegisterType::I32), Some(operation)) => {
+            let result = operation.operate(input.into_int());
+            
+            var_rw::MatchState::store_i32(variable_character.get_ptr(), var, result);
+        },
+        _ => {},
+    };
+}
 
