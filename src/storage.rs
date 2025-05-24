@@ -122,6 +122,7 @@ impl CharStore {
         }
     }
     
+    #[expect(dead_code)]
     pub fn set_number_register(&mut self, index : u8, value : Number) {
         match RegisterType::identify(index)
         {
