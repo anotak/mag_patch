@@ -145,7 +145,27 @@ macro_rules! binary_operators {
             {
                 match rhs {
                     Number::I32(rhs) => self.operate(lhs, rhs),
-                    _ => self.operate(lhs, rhs.into_float()),
+                    _ => self.operate(lhs, rhs.into_int()),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<Number,f32,f32> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : f32) -> f32
+            {
+                match lhs {
+                    Number::I32(lhs) => self.operate(lhs, rhs),
+                    _ => self.operate(lhs.into_float(), rhs),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<Number, i32,i32> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : i32) -> i32
+            {
+                match lhs {
+                    Number::I32(lhs) => self.operate(lhs, rhs),
+                    _ => self.operate(lhs.into_int(), rhs),
                 }
             }
         }

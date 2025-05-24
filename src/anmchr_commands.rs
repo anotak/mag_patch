@@ -33,8 +33,8 @@ pub enum AnoCmd
     LoadVarIntoRegister = 0x15,
     StoreVarFromRegister = 0x16,
     StoreVarFromImmediate = 0x17,
-    BinaryOperationRegisterVar = 0x18,
-    BinaryOperationImmediateVar = 0x19,
+    BinaryOperationVarRegister = 0x18,
+    BinaryOperationVarImmediate = 0x19,
     UnaryOperationVar = 0x1a,
     
     SuckX = 0x50,
@@ -298,11 +298,11 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::StoreVarFromImmediate => {
             store_var_from_immediate(exe_char, command_ptr)
         },
-        AnoCmd::BinaryOperationRegisterVar => {
-            binary_operation_register_var(exe_char, command_ptr)
+        AnoCmd::BinaryOperationVarRegister => {
+            binary_operation_var_register(exe_char, command_ptr)
         },
-        AnoCmd::BinaryOperationImmediateVar => {
-            binary_operation_immediate_var(exe_char, command_ptr)
+        AnoCmd::BinaryOperationVarImmediate => {
+            binary_operation_var_immediate(exe_char, command_ptr)
         },
         AnoCmd::UnaryOperationVar => {
             unary_operation_var(exe_char, command_ptr)
@@ -460,7 +460,7 @@ fn store_var_from_immediate(storage_character : Char, command_ptr : usize)
 }
 
 
-fn binary_operation_register_var(storage_character : Char, command_ptr : usize)
+fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 3 }) };
     
@@ -472,7 +472,7 @@ fn binary_operation_register_var(storage_character : Char, command_ptr : usize)
         );
     let operation : Option<BinaryOp> = num::FromPrimitive::from_u32(operation);
     
-    let lhs = cursor.read_u8().unwrap();
+    let rhs = cursor.read_u8().unwrap();
     
     let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
     
@@ -490,15 +490,15 @@ fn binary_operation_register_var(storage_character : Char, command_ptr : usize)
     
     let variable_type = var_rw::MatchState::get_number_type(var);
     
-    let rhs = var_rw::MatchState::load_number(variable_character.get_ptr(), var);
+    let lhs = var_rw::MatchState::load_number(variable_character.get_ptr(), var);
     
     // these two branches look fairly identical but the type has to be carried through
     match (variable_type, operation) {
         (Some(RegisterType::F32), Some(operation)) => {
-            let lhs = storage::with(
+            let rhs = storage::with(
                 storage_character.get_ptr(),
                 |store| {
-                    store.get_number_register(lhs)
+                    store.get_number_register(rhs)
                 }
             );
             
@@ -507,10 +507,10 @@ fn binary_operation_register_var(storage_character : Char, command_ptr : usize)
             var_rw::MatchState::store_f32(variable_character.get_ptr(), var, result);
         },
         (Some(RegisterType::I32), Some(operation)) => {
-            let lhs = storage::with(
+            let rhs = storage::with(
                 storage_character.get_ptr(),
                 |store| {
-                    store.get_number_register(lhs)
+                    store.get_number_register(rhs)
                 }
             );
             
@@ -522,7 +522,7 @@ fn binary_operation_register_var(storage_character : Char, command_ptr : usize)
     };
 }
 
-fn binary_operation_immediate_var(storage_character : Char, command_ptr : usize)
+fn binary_operation_var_immediate(storage_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 4 }) };
     
@@ -552,12 +552,12 @@ fn binary_operation_immediate_var(storage_character : Char, command_ptr : usize)
     
     let variable_type = var_rw::MatchState::get_number_type(var);
     
-    let rhs = var_rw::MatchState::load_number(variable_character.get_ptr(), var);
+    let lhs = var_rw::MatchState::load_number(variable_character.get_ptr(), var);
     
     // these two branches look fairly identical but the type has to be carried through
     match (variable_type, operation) {
         (Some(RegisterType::F32), Some(operation)) => {
-            let lhs = storage::with(
+            let rhs = storage::with(
                 storage_character.get_ptr(),
                 |store| {
                     store.cursor_read_f32_with_replacement(&mut cursor)
@@ -569,7 +569,7 @@ fn binary_operation_immediate_var(storage_character : Char, command_ptr : usize)
             var_rw::MatchState::store_f32(variable_character.get_ptr(), var, result);
         },
         (Some(RegisterType::I32), Some(operation)) => {
-            let lhs = cursor.read_i32::<LittleEndian>().unwrap();
+            let rhs = cursor.read_i32::<LittleEndian>().unwrap();
             
             let result = operation.operate(lhs, rhs);
             
