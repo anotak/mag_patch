@@ -211,6 +211,123 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_i32(ptr, 0x12), 0xEDCBA987u32 as i32);
+    
+    // register[0x43] = condition register = 0xEDCBA987
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000043
+        C0000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x43), 0xEDCBA987u32 as i32);
+    
+    // AirGroundStateFlags = register[0x55] = 80
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        16000000
+        00000055
+        F0000000"
+        );
+    
+    // register[0x56] = AirGroundStateFlags = 80
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000056
+        F0000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x56), 80 as i32);
+    
+    // InvincibilityFlags = 17
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        17000000
+        00000000
+        f2000000
+        11000000"
+        );
+    
+     // register[0x57] = InvincibilityFlags = 17
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000057
+        F2000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x57), 17 as i32);
+    
+     // InvincibilityFlags = InvincibilityFlags << 5 = 544
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        19000000
+        b3000000
+        00000000
+        F2000000
+        05000000"
+        );
+    
+    // register[0x58] = InvincibilityFlags = 544
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000058
+        F2000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x58), 544 as i32);
+    
+    
+     // CharacterComboCounter = logical not(CharacterComboCounter) = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        1a000000
+        c0000000
+        00000000
+        32000000"
+        );
+    
+    // register[0x59] = CharacterComboCounter = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000059
+        32000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x59), 1 as i32);
+    
+     // XPosition = 1.0
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        17000000
+        00000000
+        20000000
+        0000803f"
+        );
+    
+    // register[0x9b] = XPosition = 1.0
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        0000009b
+        20000000"
+        );
+    
+    assert_eq!(get_register_f32(ptr, 0x9b), 1.0);
 }
 
 

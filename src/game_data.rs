@@ -419,6 +419,14 @@ impl Char {
         }
     }
     
+    #[cfg(test)]
+    pub fn identify_team(&self) -> Team
+    {
+        // during tests iterating over the char nodes would just crash because they dont exist
+        Team::Player1
+    }
+    
+    #[cfg(not(test))]
     pub fn identify_team(&self) -> Team
     {
         for c in CharNode::player1() {
