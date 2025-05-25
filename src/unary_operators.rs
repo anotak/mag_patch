@@ -164,7 +164,7 @@ unary_operators! {
         /// absolute value
         0x20, Abs,
         |value : f32| { value.abs() },
-        |value : i32| { value.abs() }
+        |value : i32| { value.saturating_abs() }
     ),
     (
         /// the sign of the number.
