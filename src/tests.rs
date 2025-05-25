@@ -328,6 +328,67 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_f32(ptr, 0x9b), 1.0);
+    
+    // XPosition = sqrt(XPosition)
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        1a000000
+        10000000
+        00000000
+        20000000"
+        );
+    
+    // register[0x9c] = XPosition = 1.0
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        0000009c
+        20000000"
+        );
+    assert_eq!(get_register_f32(ptr, 0x9c), 1.0);
+    
+    // XPosition = 64.0
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        17000000
+        00000000
+        20000000
+        00008042"
+        );
+    
+    // register[0x71] = XPosition = 64
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000071
+        20000000"
+        );
+    assert_eq!(get_register_i32(ptr, 0x71), 64);
+    
+    
+    // XPosition = sqrt(XPosition)
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        1a000000
+        10000000
+        00000000
+        20000000"
+        );
+    
+    // register[0x71] = XPosition = 8
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000071
+        20000000"
+        );
+    assert_eq!(get_register_i32(ptr, 0x71), 8);
 }
 
 
