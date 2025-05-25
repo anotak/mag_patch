@@ -148,6 +148,16 @@ unary_operators! {
             (approx_cos(value)*16384.0) as i32
         }
     ),
+    (
+        /// the number times itself
+        0x13, Square,
+        |value : f32| {
+            value * value
+        },
+        |value : i32| {
+            value.wrapping_mul(value)
+        }
+    ),
     
     
     (
@@ -164,6 +174,12 @@ unary_operators! {
         0x21, Signum,
         |value : f32| { value.signum() },
         |value : i32| { value.signum() }
+    ),
+    (
+        /// the number multiplied by -1
+        0x22, Negate,
+        |value : f32| { value * -1.0 },
+        |value : i32| { value.saturating_neg() }
     ),
     
     (
