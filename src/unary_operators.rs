@@ -189,6 +189,13 @@ unary_operators! {
         |value : f32| { (value > 0.0).from_bool() },
         |value : i32| { (value.is_positive()).from_bool() }
     ),
+    (
+        /// 1 if the value is positive
+        /// 0 if 0 or negative
+        0x31, IsNegative,
+        |value : f32| { (value < 0.0).from_bool() },
+        |value : i32| { (value.is_negative()).from_bool() }
+    ),
     
     (
         /// flips all the bits 0 to 1 and 1 to 0. see also https://en.wikipedia.org/wiki/Bitwise_operation#NOT
