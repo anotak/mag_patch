@@ -222,7 +222,7 @@ opponent character's new flags = opponent character's old flags & 0xFFFFFFFB
 
 (this turns off an opponent character's invincibility, if you wanted to do that for some reason. bit cursed).
 
-## 66_19 is a unary operation with a variable
+## 66_1a is a unary operation with a variable
 
 ```
 66000000
