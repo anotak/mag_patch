@@ -787,7 +787,7 @@ impl Char {
     // 0x10 = l, 0x20 = m, 0x40 = h, 0x80 = s,
     // 0x100 = a1, 0x200 = a2,
     // 0x100000 = taunt
-    offset_getter_and_setter!(get_inputs_raw, set_inputs_raw, i32, 0x21d8);
+    offset_getter_and_setter!(get_inputs_raw, set_inputs_raw, i32, 0x21dc);
     offset_getter_and_setter!(get_char_order_raw, set_char_order, i32, 0x2db0);
     offset_getter_and_setter!(get_assist_type, set_assist_type_raw, i32, 0x4190);
     offset_getter_and_setter!(get_character_combo_counter, set_character_combo_counter, i32, 0x4164);
