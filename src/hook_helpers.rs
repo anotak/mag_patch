@@ -1,5 +1,6 @@
 // we're going to be doing a lot of unsafe stuff so yeah
 #![deny(unsafe_op_in_unsafe_fn)]
+#![macro_use]
 
 use std::sync::{Arc};
 use std::ffi::CString;
@@ -210,4 +211,17 @@ pub fn debug_msg<S: Into<String>>(msg : S)
             Default::default()
         );
     };
+}
+
+
+macro_rules! external_fn {
+    ($addr:expr, $fn_type:ty) => {
+        {
+            let result = $addr as *const $fn_type;
+        
+            let result : $fn_type = unsafe { std::mem::transmute(result) };
+        
+            result
+        }
+    }
 }

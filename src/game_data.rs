@@ -753,6 +753,21 @@ impl Char {
         }
     }
     
+    pub fn get_char_id(&self) -> i32 {
+        
+        let id = self.get_clone_engine_char_id();
+        
+        if id > 0 {
+            id
+        } else {
+            let get_char_id = external_fn!(EXE_BASE + 0x4AD0, extern "win64" fn(usize) -> i32);
+            
+            get_char_id(self.get_ptr())
+        }
+    }
+    
+    
+    offset_getter_and_setter!(get_clone_engine_char_id, _set_clone_engine_char_id, i32, 0x08);
     offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50);
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54);
     offset_getter_and_setter!(get_anmchr_id, set_anmchr_id, i32, 0x1310);
