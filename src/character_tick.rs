@@ -37,9 +37,6 @@ fn generic_character_tick(owner : Char) {
                         *restart_state = RestartState::JustRestarted;
                         
                         storage::reset_all();
-                        
-                        //debug_msg(format!("char addr? = {:#X}", owner));
-                        //debug_msg(format!("is restarting! {}", timer));
                     }
                 },
                 _ => (),
@@ -47,8 +44,6 @@ fn generic_character_tick(owner : Char) {
         },
         RestartState::JustRestarted => {
             if timer > RESTART_TIME {
-                //debug_msg(format!("reset restarter! {}", timer));
-                
                 *restart_state = RestartState::Awaiting;
             }
         },
@@ -170,49 +165,3 @@ pub fn hook_character_ticks() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 
-
-
-/*
-// originally at 0x1400c84f0
-fn ryu_character_tick(unknown_param : *const ())
-{
-    let original: fn(*const ()) -> () = {
-        // i'd love to have real error handling instead of just .unwrapping
-        // but also i dont know how i'd even begin to do that in this environ
-        // of a hooked function
-        
-        let hooks = HOOKS.lock().unwrap();
-            
-        let hook = hooks.get(&(ryu_character_tick as usize)).unwrap();
-        
-        let trampoline = hook.trampoline();
-        
-        unsafe { std::mem::transmute(trampoline) }
-    };
-    
-    //let outer_ptr = unsafe { read_usize(EXE_BASE + CHAR_NODES_BASE) };
-    
-    //debug_msg(format!("outer_ptr = {}", outer_ptr));
-    
-    //let character_tree_ptr = unsafe { read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x58) };
-    
-    //debug_msg(format!("character_tree_ptr = {}", character_tree_ptr));
-    
-    let p1_char1_ptr = unsafe { read_usize(read_usize(read_usize(EXE_BASE + CHAR_NODES_BASE) + 0x58) + 0x8) };
-    
-    //debug_msg(format!("p1_char1_ptr = {}", p1_char1_ptr));
-    
-    let x_pos : f32 = unsafe { read_ptr_no_check(p1_char1_ptr + 0x50) };
-    
-    //debug_msg(format!("resulting_data = {}", resulting_data));
-    
-    let x_pos = x_pos + 0.9;
-    
-    unsafe { write_ptr(p1_char1_ptr + 0x50, x_pos) };
-    
-    original(unknown_param);
-    
-    
-    // 1400fb7a is the function that reads anmchr commands
-}
-*/

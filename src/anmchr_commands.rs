@@ -651,23 +651,12 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
     
     let destination = cursor.read_u8().unwrap();
     
-    
-    //let get_character_name_ptr = (EXE_BASE + 0x58F90) as *const extern "win64" fn(i32) -> *const u8;
-    
-    //let get_character_name_ptr : extern "win64" fn(i32) -> *const u8 = unsafe { std::mem::transmute(get_character_name_ptr) };
-    
     let get_character_name_ptr = external_fn!(EXE_BASE + 0x58F90, extern "win64" fn(i32) -> *const u8);
-    
-    //debug_msg(format!("get_character_name_ptr = {:#X}", get_character_name_ptr as usize));
-    
     
     // not ideal, but we're doing our own strlen style comparison here because none of the rust library functions quite match our use-case. if we have more string stuff then this should really be factored out into a separate function, but for now this is the only instance of this in the code
     let id = variable_character.get_char_id();
     
-    //debug_msg(format!("id = {:#X}", id));
     let name_ptr = get_character_name_ptr(id) as usize;
-    
-    //debug_msg(format!("name_ptr = {:#X}", name_ptr));
     
     let mut name_cursor = unsafe { get_cursor(name_ptr, cursor_size) };
     
@@ -678,20 +667,16 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
         let actual_char = name_cursor.read_u8().unwrap();
         
         
-        //debug_msg(format!("{:#X} =? {:#X}", expected_char, actual_char));
         
         if expected_char != actual_char {
             is_match = false;
-            //debug_msg(format!("no match"));
             break;
         } else if expected_char == 0x00 {
-            //debug_msg(format!("done"));
             break;
         }
     }
     
     let result = if is_match { 1 } else { 0 };
-    //debug_msg(format!("result = {}", result));
     
     
     storage::with(
