@@ -166,7 +166,7 @@ pub unsafe fn read_ptr_no_check<T>(addr : usize) -> T
 const ADDR_MIN : usize = 0x00010000;
 
 #[cfg(not(test))]
-const ADDR_MAX : usize = 0x80000000;
+const ADDR_MAX : usize = 0x180000000;
 
 // while testing we're not in the address space of the game's exe so the norm ADDR_MAX doesnt really work right
 #[cfg(test)]
@@ -218,9 +218,9 @@ macro_rules! external_fn {
     ($addr:expr, $fn_type:ty) => {
         {
             let result = $addr as *const $fn_type;
-        
+            
             let result : $fn_type = unsafe { std::mem::transmute(result) };
-        
+            
             result
         }
     }
