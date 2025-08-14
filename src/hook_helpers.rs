@@ -115,6 +115,7 @@ macro_rules! typed_hooks {
 
 typed_hooks!(crate::character_tick::TickFn, __tick_hooks);
 typed_hooks!(crate::ExecuteAnmChrCommandFn, __execute_anmchr_command);
+typed_hooks!(crate::input_parse::InputParseFn, __input_parse_hook);
 
 
 /// call in your hooked functions to get the original function

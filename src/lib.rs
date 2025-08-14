@@ -15,6 +15,7 @@ mod var_rw;
 mod math;
 mod reload;
 mod error;
+mod input_parse;
 #[cfg(test)]
 mod tests;
 
@@ -63,7 +64,9 @@ fn attach() -> Result<(), Box<dyn std::error::Error>> {
     ExecuteAnmChrCommandFn::make_hook(EXE_BASE + 0xFB7A0, execute_anmchr_command)?;
     
     
-    debug_msg("mag_patch hooking success!\nthis is a hella alpha version 6 please dont share it");
+    crate::input_parse::InputParseFn::make_hook(EXE_BASE + 0x2DA30, crate::input_parse::input_parse)?;
+    
+    debug_msg("mag_patch hooking success!\nthis is a hella alpha version 7 please dont share it");
     
     Ok(())
 }
