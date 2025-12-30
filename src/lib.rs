@@ -66,7 +66,7 @@ fn attach() -> Result<(), Box<dyn std::error::Error>> {
     
     crate::input_parse::InputParseFn::make_hook(EXE_BASE + 0x2DA30, crate::input_parse::input_parse)?;
     
-    debug_msg("mag_patch hooking success!\nthis is a hella alpha version 7 please dont share it");
+    debug_msg("mag_patch hooking success!\nthis is a beta 1");
     
     Ok(())
 }
