@@ -3,11 +3,17 @@
 #![macro_use]
 
 use std::sync::{Arc};
+#[cfg(debug_assertions)]
 use std::ffi::CString;
 use std::io::Cursor;
 
+#[cfg(debug_assertions)]
 use windows::core::s;
+
+#[cfg(debug_assertions)]
 use windows::core::{PCSTR};
+
+#[cfg(debug_assertions)]
 use windows::Win32::UI::WindowsAndMessaging;
 
 use retour::{GenericDetour};
@@ -200,6 +206,8 @@ pub unsafe fn read_usize(addr : usize) -> usize
     unsafe { std::ptr::read_unaligned(ptr) }
 }
 
+
+#[cfg(debug_assertions)]
 pub fn debug_msg<S: Into<String>>(msg : S)
 {
     let msg = CString::new(msg.into()).unwrap();
@@ -212,6 +220,11 @@ pub fn debug_msg<S: Into<String>>(msg : S)
             Default::default()
         );
     };
+}
+
+#[cfg(not(debug_assertions))]
+pub fn debug_msg<S: Into<String>>(_msg : S)
+{
 }
 
 
