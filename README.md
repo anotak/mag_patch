@@ -2,7 +2,7 @@
 
 A dll hook for a certain fighting game to extend modding functionality.
 
-To use, the compiled mag_patch.asi file must be in the same folder as the game exe. Then, just start the game normally. The new features should work with character files. Documentation for new commands is (here)[docs/anmchr-commands.md].
+To use, the compiled mag_patch.asi file must be in the same folder as the game exe. Then, just start the game normally. The new features should work with character files. Documentation for new commands is [here](docs/anmchr-commands.md).
 
 ## Credits:
 
