@@ -236,6 +236,40 @@ this example takes sets the opponent's (80) meter (40) to the square root (10) o
 in short:
 opponent's new meter = square root(opponent's old meter)
 
+## 66_1b is detecting characters by id name
+
+66_1B will detect what character is your opponent or on your team by id name (the `CharacterID` from your `Characters.ini`).
+
+The first byte should be 00.
+The second byte tells mag_patch which character in the current game to look at (see 66_15 for a list of characters)
+The third byte should be 00.
+The fourth byte is which register.
+Then there is the name as a string, up to 64 bytes, and should end in 00s
+
+```
+66000000
+1B000000
+00800017
+47756900
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+```
+
+The above example will check if the opponent's character (80) is named `Gui` and load it into register 17. The result will be 1 if it is `Gui`, and 0 if it isn't. This works with any modded character.
+
 
 ## Float replacement
 You should be able to replace any floating point value in another command with a register by just putting XXFFFFFF instead of the float. This doesn't work with integers unfortunately.
