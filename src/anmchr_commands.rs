@@ -533,11 +533,22 @@ fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
         }
     };
     
-    cursor.seek(SeekFrom::Current(2)).unwrap();
+    
+    let register_flags = RegisterFlags::read(&mut cursor);
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
     
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
     let variable_type = var_rw::MatchState::get_number_type(var);
+    
+    let variable_type = if variable_type == None {
+            None
+        } else if register_flags.is_rhs_bool() {
+            Some(RegisterType::Bool)
+        } else {
+            var_rw::MatchState::get_number_type(var)
+        };
     
     let lhs = var_rw::MatchState::load_number(variable_character.get_ptr(), var);
     
@@ -560,6 +571,18 @@ fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
                 storage_character.get_ptr(),
                 |store| {
                     store.get_number_register(rhs)
+                }
+            );
+            
+            let result = operation.operate(lhs, rhs);
+            
+            var_rw::MatchState::store_i32(variable_character.get_ptr(), var, result);
+        },
+        (Some(RegisterType::Bool), Some(operation)) => {
+            let rhs = storage::with(
+                storage_character.get_ptr(),
+                |store| {
+                    store.get_bool(rhs)
                 }
             );
             

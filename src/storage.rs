@@ -662,6 +662,7 @@ impl CharStore {
     }
 }
 
+#[derive(PartialEq)]
 pub enum RegisterType {
     I32,
     F32,

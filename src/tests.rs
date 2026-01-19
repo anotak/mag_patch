@@ -560,6 +560,28 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_bool(ptr, 0x72), true);
+    
+    // AssistCooldown = boolean[0x72] (true) + AssistCooldown (0.0) = 1.0
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        18000000
+        00000000
+        72000200
+        33000000"
+        );
+    
+    
+    // register[0x40] = AssistCooldown = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000040
+        33000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x40), 1);
 }
 
 
