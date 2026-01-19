@@ -687,7 +687,7 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
         }
     };
     
-    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let register_flags = RegisterFlags::read(&mut cursor);
     
     let destination = cursor.read_u8().unwrap();
     
@@ -724,7 +724,12 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
         |store| {
             use crate::math::Number;
             
-            store.set_number_register(destination, Number::I32(result));
+            if register_flags.is_destination_bool()
+            {
+                store.set_bool(destination, is_match);
+            } else {
+                store.set_number_register(destination, Number::I32(result));
+            };
             
             storage_character.set_condition_register(result);
         }
