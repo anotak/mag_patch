@@ -244,6 +244,7 @@ macro_rules! binary_operators {
 
 // rhs means right hand side
 // lhs means left hand side
+// booleans just use the i32 version since it's the same
 binary_operators! {
     (
         /// addition

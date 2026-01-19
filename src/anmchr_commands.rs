@@ -274,7 +274,7 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
-            let op_type = if register_flags.is_destination_bool()
+            let op_type = if register_flags.is_lhs_bool() | register_flags.is_destination_bool()
                 {
                     RegisterType::Bool
                 } else {
@@ -291,10 +291,15 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                                 
                                 store.immediate_unary_operation_f32(immediate, destination, operation, register_flags);
                             },
-                            RegisterType::I32 | RegisterType::Bool => {
+                            RegisterType::I32 => {
                                 let immediate = cursor.read_i32::<LittleEndian>().unwrap();
                                 
                                 store.immediate_unary_operation_i32(immediate, destination, operation, register_flags);
+                            },
+                            RegisterType::Bool => {
+                                let immediate = cursor.read_i32::<LittleEndian>().unwrap();
+                                
+                                store.immediate_unary_operation_bool(immediate, destination, operation, register_flags);
                             },
                         };
                     }

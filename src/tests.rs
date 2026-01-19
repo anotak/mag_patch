@@ -400,7 +400,18 @@ fn test_commands() {
         );
     assert_eq!(get_register_i32(ptr, 0x71), 8);
     
-    // boolean[0x1] = boolean[0x1] + 1 = 1
+    // boolean[0xff] = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        10000000
+        000004ff
+        01000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0xff), true);
+    
+    // boolean[0x1] = boolean[0x1] + 1 = true
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -411,7 +422,7 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_bool(ptr, 0x01), true);
-    // boolean[0x1] = boolean[0x1] + 1 = 1
+    // boolean[0x1] = boolean[0x1] + 1 = true
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -423,7 +434,7 @@ fn test_commands() {
     
     assert_eq!(get_register_bool(ptr, 0x01), true);
     
-    // boolean[0x1] = boolean[0x1] ^ 1 = 0
+    // boolean[0x1] = boolean[0x1] ^ true = false
     test_execute_anmchr_command(
         ptr,
         "66000000
@@ -435,17 +446,100 @@ fn test_commands() {
     
     assert_eq!(get_register_bool(ptr, 0x01), false);
     
-    // boolean[0x1] = boolean[0x1] ^ 1 = 1
+    // boolean[0x1] = boolean[0x1] ^ true = true
     test_execute_anmchr_command(
         ptr,
         "66000000
         11000000
         b2000000
         01000501
-        01000000"
+        00040701"
         );
     
     assert_eq!(get_register_bool(ptr, 0x01), true);
+    
+    
+    // boolean[0x3] = boolean[0x1] | boolean[0x2] = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        12000000
+        b1000000
+        01020703
+        01000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x02), false);
+    assert_eq!(get_register_bool(ptr, 0x03), true);
+    
+    // boolean[0x4] = bitwise !boolean[0x3] = false
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        13000000
+        b0000000
+        03000504"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x04), false);
+    
+    // boolean[0x5] = logical !boolean[0x4] = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        13000000
+        c0000000
+        04000505"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x05), true);
+    
+    // boolean[0x6] = bitwise !0x55 = false
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        14000000
+        b0000000
+        00000506
+        55000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x06), false);
+    
+    // boolean[0x6] = bitwise !0x00 = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        14000000
+        b0000000
+        00000506
+        00000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x06), true);
+    
+    
+    // boolean[0x71] = condition register = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000471
+        C0000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x71), true);
+    
+    // boolean[0x71] = condition register = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000471
+        C0000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x71), true);
 }
 
 

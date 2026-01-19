@@ -278,10 +278,10 @@ impl CharStore {
                 self.character.set_condition_register(result);
             },
             RegisterType::Bool => {
-                let result = unary_operators::operation_i32(
-                    self.get_bool(source).from_bool(),
+                let result = unary_operators::operation_bool(
+                    self.get_bool(source),
                     operation
-                ).is_true();
+                );
                 
                 match rtype {
                     RegisterType::F32 => self.set_f32_register(destination, result.from_bool()),
@@ -340,6 +340,30 @@ impl CharStore {
         };
         
         self.character.set_condition_register(result);
+    }
+    
+    pub fn immediate_unary_operation_bool(&mut self, immediate : i32, destination : u8, operation : unary_operators::UnaryOp, register_flags : RegisterFlags)
+    {
+        let result = unary_operators::operation_bool(
+                    immediate.is_true(),
+                    operation
+                );
+        
+        let ltype = if register_flags.is_destination_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(destination)
+        };
+        
+        match ltype
+        {
+            RegisterType::F32 => self.set_f32_register(destination, bool_to_f32(result)),
+            RegisterType::I32 => self.set_i32_register(destination, bool_to_i32(result)),
+            RegisterType::Bool => self.set_bool(destination, result),
+        };
+        
+        self.character.set_condition_register(bool_to_i32(result));
     }
     
     pub fn register_imm_operation_i32(&mut self, lhs : u8, rhs_imm : i32, destination : u8, operation : binary_operators::BinaryOp, register_flags : RegisterFlags)
