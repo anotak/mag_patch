@@ -160,12 +160,79 @@ macro_rules! binary_operators {
             }
         }
         
-        impl BinaryOpHandler<Number, i32,i32> for BinaryOp {
+        impl BinaryOpHandler<Number,i32,i32> for BinaryOp {
             fn operate(self, lhs : Number, rhs : i32) -> i32
             {
                 match lhs {
                     Number::I32(lhs) => self.operate(lhs, rhs),
                     _ => self.operate(lhs.into_int(), rhs),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<bool,bool,i32> for BinaryOp {
+            fn operate(self, lhs : bool, rhs : bool) -> i32
+            {
+                self.operate(bool_to_i32(lhs), bool_to_i32(rhs))
+            }
+        }
+        
+        impl BinaryOpHandler<Number,bool,i32> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : bool) -> i32
+            {
+                match lhs {
+                    Number::I32(lhs) => self.operate(lhs, bool_to_i32(rhs)),
+                    _ => self.operate(lhs.into_float(), bool_to_i32(rhs)),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<Number,bool,f32> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : bool) -> f32
+            {
+                match lhs {
+                    Number::I32(lhs) => self.operate(lhs, bool_to_f32(rhs)),
+                    _ => self.operate(lhs.into_float(), bool_to_f32(rhs)),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<bool,Number,f32> for BinaryOp {
+            fn operate(self, lhs : bool, rhs : Number) -> f32
+            {
+                match rhs {
+                    Number::I32(rhs) => self.operate(bool_to_i32(lhs), rhs),
+                    _ => self.operate(bool_to_i32(lhs), rhs.into_float()),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<bool,Number,i32> for BinaryOp {
+            fn operate(self, lhs : bool, rhs : Number) -> i32
+            {
+                match rhs {
+                    Number::I32(rhs) => self.operate(bool_to_i32(lhs), rhs),
+                    _ => self.operate(bool_to_i32(lhs), rhs),
+                }
+            }
+        }
+        
+        impl BinaryOpHandler<Number,Number,bool> for BinaryOp {
+            fn operate(self, lhs : Number, rhs : Number) -> bool
+            {
+                match (lhs, rhs) {
+                    (Number::I32(lhs), Number::I32(rhs)) => 
+                    {
+                        let result : i32 = self.operate(lhs, rhs);
+                        
+                        result.is_true()
+                    }
+                    _ =>
+                    {
+                        let result : f32 = self.operate(lhs.into_float(), rhs.into_float());
+                        
+                        result.is_true()
+                    },
                 }
             }
         }

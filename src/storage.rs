@@ -18,7 +18,8 @@ use crate::unary_operators;
 use crate::game_data::{Char};
 use crate::reload::Reload;
 use crate::hook_helpers::read_ptr_no_check;
-use crate::math::Number;
+use crate::math::*;
+use crate::math;
 
 /// usize is usually pointer to owning object
 pub static CHAR_STORAGE : LazyLock<Mutex<HashMap<usize, CharStore>>> = LazyLock::new(|| {
@@ -72,6 +73,7 @@ pub fn with_no_make<F>(key : usize, function : F)
 
 
 const REGISTER_COUNT : usize = 128;
+const BOOL_COUNT : usize = REGISTER_COUNT * 2;
 const DEFAULT_REGISTER_F32 : f32 = 0.0;
 const DEFAULT_REGISTER_I32 : i32 = 0;
 
@@ -79,6 +81,7 @@ pub struct CharStore
 {
     character : Char,
     
+    bools : Option<Box<[bool; BOOL_COUNT]>>,
     floats : Option<Box<[f32; REGISTER_COUNT]>>,
     ints : Option<Box<[i32; REGISTER_COUNT]>>,
     
@@ -89,6 +92,7 @@ impl CharStore {
     fn new(ptr : usize) -> Self {
         Self {
             character : Char::new(ptr),
+            bools : None,
             floats : None,
             ints : None,
             suck_opponent : character_extensions::SuckOpponent {
@@ -127,6 +131,31 @@ impl CharStore {
         {
             RegisterType::F32 => self.set_f32_register(index, value.into_float()),
             RegisterType::I32 => self.set_i32_register(index, value.into_int()),
+            RegisterType::Bool => self.set_bool(index, value.is_true()),
+        }
+    }
+    
+    pub fn set_bool(&mut self, index : u8, value : bool)
+    {
+        if self.bools == None {
+            if value == false {
+                // early out, since getting from an empty list defaults to false anyway
+                return;
+            }
+            
+            self.bools = Some(Box::new([false; BOOL_COUNT]));
+        }
+        
+        if let Some(list) = &mut self.bools {
+            list[index as usize] = value;
+        }
+    }
+    
+    pub fn get_bool(&mut self, index : u8) -> bool
+    {
+        match &self.bools {
+            Some(list) => list[index as usize],
+            None => false,
         }
     }
     
@@ -170,30 +199,53 @@ impl CharStore {
         {
             RegisterType::F32 => Number::F32(self.get_f32_register(index)),
             RegisterType::I32 => Number::I32(self.get_i32_register(index)),
+            RegisterType::Bool => unreachable!(),
         }
     }
     
-    pub fn read_into_register(&mut self, destination : u8, cursor : &mut Cursor<&'static [u8]>)
+    pub fn read_into_register(&mut self, destination : u8, cursor : &mut Cursor<&'static [u8]>, register_flags : RegisterFlags)
     {
-        match RegisterType::identify(destination)
+        if register_flags.is_destination_bool()
         {
-            RegisterType::F32 => {
-                let immediate = self.cursor_read_f32_with_replacement(cursor);
-                self.set_f32_register(destination, immediate);
-                self.character.set_condition_register(immediate as i32);
-            },
-            RegisterType::I32 => {
-                let immediate = cursor.read_i32::<LittleEndian>().unwrap();
-                self.set_i32_register(destination, immediate);
-                self.character.set_condition_register(immediate);
-            },
+            let value = cursor.read_i32::<LittleEndian>().unwrap();
+            self.set_bool(destination, value.is_true());
+            self.character.set_condition_register(value);
+        }
+        else {
+            match RegisterType::identify(destination)
+            {
+                RegisterType::F32 => {
+                    let immediate = self.cursor_read_f32_with_replacement(cursor);
+                    self.set_f32_register(destination, immediate);
+                    self.character.set_condition_register(immediate as i32);
+                },
+                RegisterType::I32 => {
+                    let immediate = cursor.read_i32::<LittleEndian>().unwrap();
+                    self.set_i32_register(destination, immediate);
+                    self.character.set_condition_register(immediate);
+                },
+                RegisterType::Bool => unreachable!(),
+            }
         }
     }
     
-    pub fn register_unary_operation(&mut self, source : u8, destination : u8, operation : unary_operators::UnaryOp)
+    pub fn register_unary_operation(&mut self, source : u8, destination : u8, operation : unary_operators::UnaryOp, register_flags : RegisterFlags)
     {
-        let ltype = RegisterType::identify(source);
-        let rtype = RegisterType::identify(destination);
+        let ltype = if register_flags.is_lhs_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(source)
+        };
+        
+        let rtype = if register_flags.is_destination_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(destination)
+        };
+        
+        
         
         match ltype
         {
@@ -206,6 +258,7 @@ impl CharStore {
                 match rtype {
                     RegisterType::F32 => self.set_f32_register(destination, result),
                     RegisterType::I32 => self.set_i32_register(destination, result as i32),
+                    RegisterType::Bool => self.set_bool(destination, result.is_true()),
                 }
                 
                 self.character.set_condition_register(result as i32);
@@ -219,104 +272,221 @@ impl CharStore {
                 match rtype {
                     RegisterType::F32 => self.set_f32_register(destination, result as f32),
                     RegisterType::I32 => self.set_i32_register(destination, result),
+                    RegisterType::Bool => self.set_bool(destination, result.is_true()),
                 }
                 
                 self.character.set_condition_register(result);
             },
+            RegisterType::Bool => {
+                let result = unary_operators::operation_i32(
+                    self.get_bool(source).from_bool(),
+                    operation
+                ).is_true();
+                
+                match rtype {
+                    RegisterType::F32 => self.set_f32_register(destination, result.from_bool()),
+                    RegisterType::I32 => self.set_i32_register(destination, result.from_bool()),
+                    RegisterType::Bool => self.set_bool(destination, result),
+                }
+                
+                self.character.set_condition_register(result.from_bool());
+            },
         };
     }
     
-    pub fn immediate_unary_operation_f32(&mut self, immediate : f32, destination : u8, operation : unary_operators::UnaryOp)
+    pub fn immediate_unary_operation_f32(&mut self, immediate : f32, destination : u8, operation : unary_operators::UnaryOp, register_flags : RegisterFlags)
     {
         let result = unary_operators::operation_f32(
                     immediate,
                     operation
                 );
         
-        let ltype = RegisterType::identify(destination);
+        let ltype = if register_flags.is_destination_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(destination)
+        };
         
         match ltype
         {
             RegisterType::F32 => self.set_f32_register(destination, result),
             RegisterType::I32 => self.set_i32_register(destination, result as i32),
+            RegisterType::Bool => self.set_bool(destination, result.is_true()),
         };
         
         self.character.set_condition_register(result as i32);
     }
     
-    pub fn immediate_unary_operation_i32(&mut self, immediate : i32, destination : u8, operation : unary_operators::UnaryOp)
+    pub fn immediate_unary_operation_i32(&mut self, immediate : i32, destination : u8, operation : unary_operators::UnaryOp, register_flags : RegisterFlags)
     {
         let result = unary_operators::operation_i32(
                     immediate,
                     operation
                 );
         
-        let ltype = RegisterType::identify(destination);
+        let ltype = if register_flags.is_destination_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(destination)
+        };
         
         match ltype
         {
             RegisterType::F32 => self.set_f32_register(destination, result as f32),
             RegisterType::I32 => self.set_i32_register(destination, result),
+            RegisterType::Bool => self.set_bool(destination, result.is_true()),
         };
         
         self.character.set_condition_register(result);
     }
     
-    pub fn register_imm_operation_i32(&mut self, lhs : u8, rhs_imm : i32, destination : u8, operation : binary_operators::BinaryOp)
+    pub fn register_imm_operation_i32(&mut self, lhs : u8, rhs_imm : i32, destination : u8, operation : binary_operators::BinaryOp, register_flags : RegisterFlags)
     {
-        let ltype = RegisterType::identify(lhs);
+        let rhs_imm = if register_flags.is_rhs_bool() {
+            rhs_imm.bool_roundtrip()
+        } else {
+            rhs_imm
+        };
         
-        match ltype
+        if register_flags.is_lhs_bool()
         {
-            RegisterType::F32 => {
-                let result = operation.operate(
-                    self.get_f32_register(lhs),
-                    rhs_imm
-                );
-                self.set_i32_register(destination, result);
-                self.character.set_condition_register(result as i32);
-            },
-            RegisterType::I32 => {
-                let result = operation.operate(
-                    self.get_i32_register(lhs),
-                    rhs_imm
-                );
+            let result : i32 = operation.operate(
+                math::bool_to_i32(self.get_bool(lhs)),
+                rhs_imm
+            );
+            
+            if register_flags.is_destination_bool() {
+                self.set_bool(destination, result.is_true());
+                self.character.set_condition_register(result.bool_roundtrip());
+            } else {
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);
-            },
-        };
+            }
+        } else {
+            let ltype = RegisterType::identify(lhs);
+            
+            match ltype
+            {
+                RegisterType::F32 => {
+                    let result : i32 = operation.operate(
+                        self.get_f32_register(lhs),
+                        rhs_imm
+                    );
+                    
+                    if register_flags.is_destination_bool() {
+                        self.set_bool(destination, result.is_true());
+                    } else {
+                        self.set_i32_register(destination, result);
+                    }
+                    self.character.set_condition_register(result);
+                },
+                RegisterType::I32 => {
+                    let result : i32 = operation.operate(
+                        self.get_i32_register(lhs),
+                        rhs_imm
+                    );
+                    
+                    if register_flags.is_destination_bool() {
+                        self.set_bool(destination, result.is_true());
+                    } else {
+                        self.set_i32_register(destination, result);
+                    }
+                    self.character.set_condition_register(result);
+                },
+                RegisterType::Bool => {
+                    unreachable!()
+                },
+            };
+        }
     }
     
-    pub fn register_imm_operation_f32(&mut self, lhs : u8, rhs_imm : f32, destination : u8, operation : binary_operators::BinaryOp)
+    pub fn register_imm_operation_f32(&mut self, lhs : u8, rhs_imm : f32, destination : u8, operation : binary_operators::BinaryOp, register_flags : RegisterFlags)
     {
-        let ltype = RegisterType::identify(lhs);
-        
-        match ltype
+        if register_flags.is_lhs_bool()
         {
-            RegisterType::F32 => {
-                let result = operation.operate(
-                    self.get_f32_register(lhs),
-                    rhs_imm
-                );
-                self.set_f32_register(destination, result);
-                self.character.set_condition_register(result as i32);
-            },
-            RegisterType::I32 => {
-                let result = operation.operate(
-                    self.get_i32_register(lhs),
-                    rhs_imm
-                );
-                self.set_f32_register(destination, result);
-                self.character.set_condition_register(result as i32);
-            },
-        };
+            let rhs_imm = rhs_imm.to_bits() as i32;
+            
+            let rhs_imm = if register_flags.is_rhs_bool() {
+                rhs_imm.bool_roundtrip()
+            } else {
+                rhs_imm
+            };
+            
+            let result : i32 = operation.operate(
+                math::bool_to_i32(self.get_bool(lhs)),
+                rhs_imm
+            );
+            
+            if register_flags.is_destination_bool() {
+                self.set_bool(destination, result.is_true());
+                self.character.set_condition_register(result.bool_roundtrip());
+            } else {
+                self.set_f32_register(destination, result as f32);
+                self.character.set_condition_register(result);
+            }
+        } else {
+            let rhs_imm = if register_flags.is_rhs_bool() {
+                rhs_imm.bool_roundtrip()
+            } else {
+                rhs_imm
+            };
+            
+            let ltype = RegisterType::identify(lhs);
+            
+            match ltype
+            {
+                RegisterType::F32 => {
+                    let result : f32 = operation.operate(
+                        self.get_f32_register(lhs),
+                        rhs_imm
+                    );
+                    
+                    if register_flags.is_destination_bool() {
+                        self.set_bool(destination, result.is_true());
+                    } else {
+                        self.set_f32_register(destination, result);
+                    }
+                    self.character.set_condition_register(result as i32);
+                },
+                RegisterType::I32 => {
+                    let result : f32 = operation.operate(
+                        self.get_i32_register(lhs),
+                        rhs_imm
+                    );
+                    
+                    if register_flags.is_destination_bool() {
+                        self.set_bool(destination, result.is_true());
+                    } else {
+                        self.set_f32_register(destination, result);
+                    }
+                    self.character.set_condition_register(result as i32);
+                },
+                RegisterType::Bool => {
+                    unreachable!()
+                },
+            };
+        }
     }
     
-    pub fn register_register_operation(&mut self, lhs : u8, rhs : u8, destination : u8, operation : binary_operators::BinaryOp)
+    pub fn register_register_operation(&mut self, lhs : u8, rhs : u8, destination : u8, operation : binary_operators::BinaryOp, register_flags : RegisterFlags)
     {
-        let ltype = RegisterType::identify(lhs);
-        let rtype = RegisterType::identify(rhs);
-        let dtype = RegisterType::identify(destination);
+        let ltype = if register_flags.is_lhs_bool() {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(lhs)
+        };
+        let rtype = if register_flags.is_rhs_bool() {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(rhs)
+        };
+        let dtype = if register_flags.is_destination_bool() {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(destination)
+        };
         
         match (ltype, rtype, dtype)
         {
@@ -384,6 +554,86 @@ impl CharStore {
                 self.set_i32_register(destination, result);
                 self.character.set_condition_register(result);
             },
+            (RegisterType::Bool, RegisterType::I32 | RegisterType::F32, RegisterType::I32) => {
+                let result = operation.operate(
+                    self.get_bool(lhs),
+                    self.get_number_register(rhs)
+                );
+                self.set_i32_register(destination, result);
+                self.character.set_condition_register(result);
+            },
+            (RegisterType::Bool, RegisterType::I32 | RegisterType::F32, RegisterType::F32) => {
+                let result = operation.operate(
+                    self.get_bool(lhs),
+                    self.get_number_register(rhs)
+                );
+                self.set_f32_register(destination, result);
+                self.character.set_condition_register(result as i32);
+            },
+            (RegisterType::I32 | RegisterType::F32, RegisterType::Bool, RegisterType::I32) => {
+                let result = operation.operate(
+                    self.get_number_register(lhs),
+                    self.get_bool(rhs)
+                );
+                self.set_i32_register(destination, result);
+                self.character.set_condition_register(result);
+            },
+            (RegisterType::I32 | RegisterType::F32, RegisterType::Bool, RegisterType::F32) => {
+                let result = operation.operate(
+                    self.get_number_register(lhs),
+                    self.get_bool(rhs)
+                );
+                self.set_f32_register(destination, result);
+                self.character.set_condition_register(result as i32);
+            },
+            (RegisterType::Bool, RegisterType::Bool, RegisterType::I32) => {
+                let result = operation.operate(
+                    self.get_bool(lhs),
+                    self.get_bool(rhs)
+                );
+                self.set_i32_register(destination, result);
+                self.character.set_condition_register(result);
+            },
+            (RegisterType::Bool, RegisterType::Bool, RegisterType::F32) => {
+                let result = operation.operate(
+                    self.get_bool(lhs),
+                    self.get_bool(rhs)
+                ) as f32;
+                self.set_f32_register(destination, result);
+                self.character.set_condition_register(result as i32);
+            },
+            (RegisterType::Bool, RegisterType::Bool, RegisterType::Bool) => {
+                let result = operation.operate(
+                    self.get_bool(lhs),
+                    self.get_bool(rhs)
+                );
+                self.set_bool(destination, result.is_true());
+                self.character.set_condition_register(result);
+            },
+            (RegisterType::I32 | RegisterType::F32, RegisterType::I32 | RegisterType::F32, RegisterType::Bool) => {
+                let result = operation.operate(
+                    self.get_number_register(lhs),
+                    self.get_number_register(rhs)
+                );
+                self.set_bool(destination, result);
+                self.character.set_condition_register(result.from_bool());
+            },
+            (RegisterType::I32 | RegisterType::F32, RegisterType::Bool, RegisterType::Bool) => {
+                let result : i32 = operation.operate(
+                    self.get_number_register(lhs),
+                    self.get_bool(rhs)
+                );
+                self.set_bool(destination, result.is_true());
+                self.character.set_condition_register(result);
+            },
+            (RegisterType::Bool, RegisterType::I32 | RegisterType::F32, RegisterType::Bool) => {
+                let result : i32 = operation.operate(
+                    self.get_bool(lhs),
+                    self.get_number_register(rhs)
+                );
+                self.set_bool(destination, result.is_true());
+                self.character.set_condition_register(result);
+            },
         };
     }
 }
@@ -391,6 +641,7 @@ impl CharStore {
 pub enum RegisterType {
     I32,
     F32,
+    Bool
 }
 
 const F32_REGISTER_MASK : u8 = 0x80;
@@ -488,3 +739,33 @@ impl CharStore
     }
 }
 
+
+#[repr(transparent)]
+pub struct RegisterFlags {
+    raw : u8,
+}
+
+macro_rules! bitflag_getter {
+    ($getter:ident, $bits:literal) => {
+        #[allow(dead_code)]
+        #[inline]
+        pub fn $getter(&self) -> bool
+        {
+            (self.raw & $bits) == $bits
+        }
+    }
+}
+
+
+impl RegisterFlags {
+    bitflag_getter!(is_lhs_bool, 0x01);
+    bitflag_getter!(is_rhs_bool, 0x02);
+    bitflag_getter!(is_destination_bool, 0x04);
+    
+    pub fn read(cursor : &mut Cursor<&'static [u8]>) -> Self
+    {
+        Self {
+            raw : cursor.read_u8().unwrap()
+        }
+    }
+}

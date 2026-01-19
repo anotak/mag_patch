@@ -10,11 +10,12 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use crate::hook_helpers::*;
 use crate::game_data::*;
 use crate::storage;
-use crate::storage::RegisterType;
+use crate::storage::{RegisterType, RegisterFlags};
 use crate::character_extensions;
 use crate::var_rw;
 use crate::binary_operators::{BinaryOp,BinaryOpHandler};
 use crate::unary_operators::{UnaryOp,UnaryOpHandler};
+use crate::math::*;
 
 /// This is the number after the 0x66
 /// All commands that start with 0x66 should be ones added by me (anotak). if you want to add commands you should reserve another starting value to prevent conflicts. (game uses commands 0 through 7 inclusive)
@@ -37,6 +38,7 @@ pub enum AnoCmd
     BinaryOperationVarImmediate = 0x19,
     UnaryOperationVar = 0x1a,
     CheckCharacterName = 0x1b,
+    
     
     SuckX = 0x50,
 }
@@ -155,13 +157,14 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::LoadImmediateIntoRegister => {
             let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2 }) };
             
-            cursor.seek(SeekFrom::Current(3)).unwrap();
+            cursor.seek(SeekFrom::Current(2)).unwrap();
+            let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
             storage::with(
                 exe_char.get_ptr(),
                 |store| {
-                    store.read_into_register(destination, &mut cursor)
+                    store.read_into_register(destination, &mut cursor, register_flags)
                 }
             );
         },
@@ -177,7 +180,8 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let operation = num::FromPrimitive::from_u32(operation);
             
             let lhs = cursor.read_u8().unwrap();
-            cursor.seek(SeekFrom::Current(2)).unwrap();
+            cursor.seek(SeekFrom::Current(1)).unwrap();
+            let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
             let op_type = RegisterType::identify(destination);
@@ -192,12 +196,12 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                             RegisterType::F32 => {
                                 let rhs = store.cursor_read_f32_with_replacement(&mut cursor);
                                 
-                                store.register_imm_operation_f32(lhs, rhs, destination, operation);
+                                store.register_imm_operation_f32(lhs, rhs, destination, operation, register_flags);
                             },
-                            RegisterType::I32 => {
+                            RegisterType::I32 | RegisterType::Bool => {
                                 let rhs = cursor.read_i32::<LittleEndian>().unwrap();
                                 
-                                store.register_imm_operation_i32(lhs, rhs, destination, operation);
+                                store.register_imm_operation_i32(lhs, rhs, destination, operation, register_flags);
                             },
                         };
                     }
@@ -217,14 +221,14 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             
             let lhs = cursor.read_u8().unwrap();
             let rhs = cursor.read_u8().unwrap();
-            cursor.seek(SeekFrom::Current(1)).unwrap();
+            let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
             if let Some(operation) = operation {
                 storage::with(
                     exe_char.get_ptr(),
                     |store| {
-                        store.register_register_operation(lhs, rhs, destination, operation);
+                        store.register_register_operation(lhs, rhs, destination, operation, register_flags);
                     }
                 );
             }
@@ -242,14 +246,15 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let operation = num::FromPrimitive::from_u32(operation);
             
             let reg = cursor.read_u8().unwrap();
-            cursor.seek(SeekFrom::Current(2)).unwrap();
+            cursor.seek(SeekFrom::Current(1)).unwrap();
+            let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
             if let Some(operation) = operation {
                 storage::with(
                     exe_char.get_ptr(),
                     |store| {
-                        store.register_unary_operation(reg, destination, operation);
+                        store.register_unary_operation(reg, destination, operation, register_flags);
                     }
                 );
             }
@@ -265,10 +270,16 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                 );
             let operation = num::FromPrimitive::from_u32(operation);
             
-            cursor.seek(SeekFrom::Current(3)).unwrap();
+            cursor.seek(SeekFrom::Current(2)).unwrap();
+            let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
-            let op_type = RegisterType::identify(destination);
+            let op_type = if register_flags.is_destination_bool()
+                {
+                    RegisterType::Bool
+                } else {
+                    RegisterType::identify(destination)
+                };
             
             if let Some(operation) = operation {
                 storage::with(
@@ -278,12 +289,12 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                             RegisterType::F32 => {
                                 let immediate = store.cursor_read_f32_with_replacement(&mut cursor);
                                 
-                                store.immediate_unary_operation_f32(immediate, destination, operation);
+                                store.immediate_unary_operation_f32(immediate, destination, operation, register_flags);
                             },
-                            RegisterType::I32 => {
+                            RegisterType::I32 | RegisterType::Bool => {
                                 let immediate = cursor.read_i32::<LittleEndian>().unwrap();
                                 
-                                store.immediate_unary_operation_i32(immediate, destination, operation);
+                                store.immediate_unary_operation_i32(immediate, destination, operation, register_flags);
                             },
                         };
                     }
@@ -339,10 +350,16 @@ fn load_var_into_register(storage_character : Char, command_ptr : usize)
     
     let variable_character = storage_character.related_character(character_relation);
     
-    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let register_flags = RegisterFlags::read(&mut cursor);
+    
     let destination = cursor.read_u8().unwrap();
     
-    let destination_type = RegisterType::identify(destination);
+    let destination_type = if register_flags.is_destination_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(destination)
+        };
     
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
@@ -372,6 +389,16 @@ fn load_var_into_register(storage_character : Char, command_ptr : usize)
                     
                     variable_character.map(|c| c.set_condition_register(result));
                 },
+                RegisterType::Bool => {
+                    let result = match variable_character {
+                        Some(ref variable_character) => var_rw::MatchState::load_i32(variable_character.get_ptr(), var),
+                        None => 0,
+                    };
+                    
+                    store.set_bool(destination, result.is_true());
+                    
+                    variable_character.map(|c| c.set_condition_register(result));
+                },
             };
         }
     );
@@ -392,10 +419,15 @@ fn store_var_from_register(storage_character : Char, command_ptr : usize)
         }
     };
     
-    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let register_flags = RegisterFlags::read(&mut cursor);
     let source = cursor.read_u8().unwrap();
     
-    let source_type = RegisterType::identify(source);
+    let source_type = if register_flags.is_lhs_bool()
+        {
+            RegisterType::Bool
+        } else {
+            RegisterType::identify(source)
+        };
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
     storage::with(
@@ -411,6 +443,13 @@ fn store_var_from_register(storage_character : Char, command_ptr : usize)
                 },
                 RegisterType::I32 => {
                     let source_value = store.get_i32_register(source);
+                    
+                    var_rw::MatchState::store_i32(variable_character.get_ptr(), var, source_value);
+                    
+                    variable_character.set_condition_register(source_value);
+                },
+                RegisterType::Bool => {
+                    let source_value = store.get_bool(source).from_bool();
                     
                     var_rw::MatchState::store_i32(variable_character.get_ptr(), var, source_value);
                     
@@ -437,7 +476,8 @@ fn store_var_from_immediate(storage_character : Char, command_ptr : usize)
         }
     };
     
-    cursor.seek(SeekFrom::Current(2)).unwrap();
+    let _register_flags = RegisterFlags::read(&mut cursor);
+    cursor.seek(SeekFrom::Current(1)).unwrap();
     
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
@@ -454,7 +494,7 @@ fn store_var_from_immediate(storage_character : Char, command_ptr : usize)
             
             var_rw::MatchState::store_f32(variable_character.get_ptr(), var, immediate);
         },
-        Some(RegisterType::I32) => {
+        Some(RegisterType::I32 | RegisterType::Bool) => {
             let immediate = cursor.read_i32::<LittleEndian>().unwrap();
             
             var_rw::MatchState::store_i32(variable_character.get_ptr(), var, immediate);

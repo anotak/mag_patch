@@ -98,6 +98,16 @@ fn test_execute_anmchr_command(ptr : usize, to_test_str : &str)
 
 extern "win64" fn replaced_fake_execute_anmchr_command(_executor_ptr : usize, _anmchr_command_ptr : usize) {}
 
+fn get_register_bool(ptr : usize, register : usize) -> bool
+{
+    storage::with(
+        ptr - 0x1348,
+        |store| {
+            store.get_bool(register as u8)
+        }
+    )
+}
+
 fn get_register_i32(ptr : usize, register : usize) -> i32
 {
     storage::with(
@@ -389,6 +399,53 @@ fn test_commands() {
         20000000"
         );
     assert_eq!(get_register_i32(ptr, 0x71), 8);
+    
+    // boolean[0x1] = boolean[0x1] + 1 = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        00000000
+        01000501
+        01000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x01), true);
+    // boolean[0x1] = boolean[0x1] + 1 = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        00000000
+        01000501
+        01000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x01), true);
+    
+    // boolean[0x1] = boolean[0x1] ^ 1 = 0
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        b2000000
+        01000501
+        01000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x01), false);
+    
+    // boolean[0x1] = boolean[0x1] ^ 1 = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        b2000000
+        01000501
+        01000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x01), true);
 }
 
 

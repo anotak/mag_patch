@@ -20,11 +20,16 @@ pub trait NumFromBool<T> where T : Truthful {
     fn from_bool(self) -> T;
 }
 
+pub trait BoolRoundtrip {
+    fn bool_roundtrip(self : &Self) -> Self;
+}
+
 impl Truthful for i32 {
     const TRUE : Self = 1;
     const FALSE : Self = 0;
     
 
+    #[inline]
     fn is_true(self) -> bool
     {
         self != Self::FALSE
@@ -32,6 +37,7 @@ impl Truthful for i32 {
 }
 
 impl NumFromBool<i32> for bool {
+    #[inline]
     fn from_bool(self) -> i32
     {
         if self {
@@ -47,6 +53,7 @@ impl Truthful for f32 {
     const FALSE : Self = 0.0;
     
 
+    #[inline]
     fn is_true(self) -> bool
     {
         if abs_diff(self,Self::FALSE) < COMPARISON_EPSILON {
@@ -58,6 +65,7 @@ impl Truthful for f32 {
 }
 
 impl NumFromBool<f32> for bool {
+    #[inline]
     fn from_bool(self) -> f32
     {
         if self {
@@ -66,6 +74,28 @@ impl NumFromBool<f32> for bool {
             f32::FALSE
         }
     }
+}
+
+impl BoolRoundtrip for i32 {
+    fn bool_roundtrip(self : &Self) -> Self {
+        self.is_true().from_bool()
+    }
+}
+
+impl BoolRoundtrip for f32 {
+    fn bool_roundtrip(self : &Self) -> Self {
+        self.is_true().from_bool()
+    }
+}
+
+pub fn bool_to_i32(b : bool) -> i32
+{
+    b.from_bool()
+}
+
+pub fn bool_to_f32(b : bool) -> f32
+{
+    b.from_bool()
 }
 
 
@@ -132,5 +162,37 @@ impl Number {
             Number::F32(f) => f as i32,
             Number::I32(i) => i,
         }
+    }
+}
+
+impl Truthful for Number {
+    const TRUE : Self = Number::I32(i32::TRUE);
+    const FALSE : Self = Number::I32(i32::FALSE);
+    
+    #[inline]
+    fn is_true(self) -> bool
+    {
+        match self {
+            Number::F32(f) => f.is_true(),
+            Number::I32(i) => i.is_true(),
+        }
+    }
+}
+
+impl NumFromBool<Number> for bool {
+    #[inline]
+    fn from_bool(self) -> Number
+    {
+        match self {
+            true => Number::TRUE,
+            false => Number::FALSE,
+        }
+    }
+}
+
+
+impl BoolRoundtrip for Number {
+    fn bool_roundtrip(self : &Self) -> Self {
+        self.is_true().from_bool()
     }
 }
