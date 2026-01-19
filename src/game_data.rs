@@ -548,6 +548,15 @@ impl Char {
         }
     }
     
+    // for unit tests we have to use this version because CharNodes don't exist during unit tests
+    #[cfg(test)]
+    pub fn if_valid_ancestor<F, T>(addr : usize, default : T, function : F) -> T
+        where F : FnOnce(Char) -> T
+    {
+        Self::if_valid(addr, default, function)
+    }
+    
+    #[cfg(not(test))]
     pub fn if_valid_ancestor<F, T>(addr : usize, default : T, function : F) -> T
         where F : FnOnce(Char) -> T
     {

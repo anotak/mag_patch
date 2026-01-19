@@ -540,6 +540,26 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_bool(ptr, 0x71), true);
+    
+    // AssistType = boolean[0x06] = true = 1
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        16000000
+        00000106
+        B2000000"
+        );
+    
+    // boolean[0x72] = AssistType = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00000472
+        B2000000"
+        );
+    
+    assert_eq!(get_register_bool(ptr, 0x72), true);
 }
 
 
