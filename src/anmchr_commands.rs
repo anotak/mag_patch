@@ -164,6 +164,8 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             storage::with(
                 exe_char.get_ptr(),
                 |store| {
+                    let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+                    
                     store.read_into_register(destination, &mut cursor, register_flags)
                 }
             );
@@ -184,14 +186,16 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
-            let op_type = RegisterType::identify(destination);
-            
-            //debug_msg(format!("reg imm operation = {:?} destination = {:?}", operation, destination));
             
             if let Some(operation) = operation {
                 storage::with(
                     exe_char.get_ptr(),
                     |store| {
+                        let lhs = store.resolve_indirect_register(lhs, register_flags.is_lhs_indirect());
+                        let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+                        
+                        let op_type = RegisterType::identify(destination);
+                        
                         match op_type {
                             RegisterType::F32 => {
                                 let rhs = store.cursor_read_f32_with_replacement(&mut cursor);
@@ -228,6 +232,10 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                 storage::with(
                     exe_char.get_ptr(),
                     |store| {
+                        let lhs = store.resolve_indirect_register(lhs, register_flags.is_lhs_indirect());
+                        let rhs = store.resolve_indirect_register(rhs, register_flags.is_rhs_indirect());
+                        let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+                        
                         store.register_register_operation(lhs, rhs, destination, operation, register_flags);
                     }
                 );
@@ -254,6 +262,9 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                 storage::with(
                     exe_char.get_ptr(),
                     |store| {
+                        let reg = store.resolve_indirect_register(reg, register_flags.is_lhs_indirect());
+                        let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+                        
                         store.register_unary_operation(reg, destination, operation, register_flags);
                     }
                 );
@@ -274,17 +285,20 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
             let register_flags = RegisterFlags::read(&mut cursor);
             let destination = cursor.read_u8().unwrap();
             
-            let op_type = if register_flags.is_lhs_bool() | register_flags.is_destination_bool()
-                {
-                    RegisterType::Bool
-                } else {
-                    RegisterType::identify(destination)
-                };
             
             if let Some(operation) = operation {
                 storage::with(
                     exe_char.get_ptr(),
                     |store| {
+                        let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+                        
+                        let op_type = if register_flags.is_lhs_bool() | register_flags.is_destination_bool()
+                            {
+                                RegisterType::Bool
+                            } else {
+                                RegisterType::identify(destination)
+                            };
+                        
                         match op_type {
                             RegisterType::F32 => {
                                 let immediate = store.cursor_read_f32_with_replacement(&mut cursor);
@@ -352,27 +366,23 @@ fn load_var_into_register(storage_character : Char, command_ptr : usize)
     
     cursor.seek(SeekFrom::Current(1)).unwrap();
     let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
-    
     let variable_character = storage_character.related_character(character_relation);
-    
     let register_flags = RegisterFlags::read(&mut cursor);
-    
     let destination = cursor.read_u8().unwrap();
-    
-    let destination_type = if register_flags.is_destination_bool()
-        {
-            RegisterType::Bool
-        } else {
-            RegisterType::identify(destination)
-        };
-    
     let var = cursor.read_u32::<LittleEndian>().unwrap();
-    
-    
     
     storage::with(
         storage_character.get_ptr(),
         |store| {
+            let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+            
+            let destination_type = if register_flags.is_destination_bool()
+                {
+                    RegisterType::Bool
+                } else {
+                    RegisterType::identify(destination)
+                };
+            
             match destination_type {
                 RegisterType::F32 => {
                     let result = match variable_character {
@@ -426,18 +436,21 @@ fn store_var_from_register(storage_character : Char, command_ptr : usize)
     
     let register_flags = RegisterFlags::read(&mut cursor);
     let source = cursor.read_u8().unwrap();
-    
-    let source_type = if register_flags.is_lhs_bool()
-        {
-            RegisterType::Bool
-        } else {
-            RegisterType::identify(source)
-        };
     let var = cursor.read_u32::<LittleEndian>().unwrap();
     
     storage::with(
         storage_character.get_ptr(),
         |store| {
+            let source = store.resolve_indirect_register(source, register_flags.is_lhs_indirect());
+            
+            let source_type = if register_flags.is_lhs_bool()
+                {
+                    RegisterType::Bool
+                } else {
+                    RegisterType::identify(source)
+                };
+            
+            
             match source_type {
                 RegisterType::F32 => {
                     let source_value = store.get_f32_register(source);
@@ -558,6 +571,8 @@ fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
             let rhs = storage::with(
                 storage_character.get_ptr(),
                 |store| {
+                    let rhs = store.resolve_indirect_register(rhs, register_flags.is_rhs_indirect());
+                    
                     store.get_number_register(rhs)
                 }
             );
@@ -570,6 +585,8 @@ fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
             let rhs = storage::with(
                 storage_character.get_ptr(),
                 |store| {
+                    let rhs = store.resolve_indirect_register(rhs, register_flags.is_rhs_indirect());
+                    
                     store.get_number_register(rhs)
                 }
             );
@@ -582,6 +599,8 @@ fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
             let rhs = storage::with(
                 storage_character.get_ptr(),
                 |store| {
+                    let rhs = store.resolve_indirect_register(rhs, register_flags.is_rhs_indirect());
+                    
                     store.get_bool(rhs)
                 }
             );
@@ -716,7 +735,6 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
     };
     
     let register_flags = RegisterFlags::read(&mut cursor);
-    
     let destination = cursor.read_u8().unwrap();
     
     let get_character_name_ptr = external_fn!(EXE_BASE + 0x58F90, extern "win64" fn(i32) -> *const u8);
@@ -751,6 +769,8 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
         storage_character.get_ptr(),
         |store| {
             use crate::math::Number;
+            
+            let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
             
             if register_flags.is_destination_bool()
             {

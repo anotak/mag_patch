@@ -203,6 +203,16 @@ impl CharStore {
         }
     }
     
+    pub fn resolve_indirect_register(&mut self, index : u8, is_indirect : bool) -> u8 {
+        if is_indirect {
+            let index = (self.get_number_register(index).into_int() & 0xFF) as u8;
+            
+            index
+        } else {
+            index
+        }
+    }
+    
     pub fn read_into_register(&mut self, destination : u8, cursor : &mut Cursor<&'static [u8]>, register_flags : RegisterFlags)
     {
         if register_flags.is_destination_bool()
@@ -786,6 +796,9 @@ impl RegisterFlags {
     bitflag_getter!(is_lhs_bool, 0x01);
     bitflag_getter!(is_rhs_bool, 0x02);
     bitflag_getter!(is_destination_bool, 0x04);
+    bitflag_getter!(is_lhs_indirect, 0x10);
+    bitflag_getter!(is_rhs_indirect, 0x20);
+    bitflag_getter!(is_destination_indirect, 0x40);
     
     pub fn read(cursor : &mut Cursor<&'static [u8]>) -> Self
     {

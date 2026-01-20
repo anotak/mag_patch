@@ -582,6 +582,120 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_i32(ptr, 0x40), 1);
+    
+    // register[register[0x40]] = register[0x01] = 0x123
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        10000000
+        00004040
+        23010000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x01), 0x123);
+    
+    
+    // register[register[0x55]] = register[0x50] = register[register[0x40]] + 0x18 = register[0x01] + 0x18 = 0x123 + 0x14e = 0x171
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        11000000
+        00000000
+        40005055
+        4e010000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x50), 0x271);
+    
+    // register[register[0x01]] = register[0x23] = register[register[0x50]] + register[register[0x55]] = register[0x71] + register[0x50] = 0x08 + 0x271 = 0x279
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        12000000
+        00000000
+        50557001"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x55), 0x50);
+    assert_eq!(get_register_i32(ptr, 0x50), 0x271);
+    assert_eq!(get_register_i32(ptr, 0x71), 0x08);
+    assert_eq!(get_register_i32(ptr, 0x40), 0x01);
+    assert_eq!(get_register_i32(ptr, 0x01), 0x123);
+    assert_eq!(get_register_i32(ptr, 0x23), 0x279);
+    
+    // register[register[0x23]] = register[0x79] = register[register[0x01]] squared = register[0x23] squared = 0x79 * 0x79 = 0x61D31
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        13000000
+        13000000
+        01005023"
+        );
+    assert_eq!(get_register_i32(ptr, 0x79), 0x61D31);
+    
+    // register[register[0x79]] = register[0x31] = 0x03 squared = 0x09
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        14000000
+        13000000
+        00004079
+        03000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x31), 0x09);
+    
+    // register[register[0x31]] = register[0x09] = XPosition = 8
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00004031
+        20000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x09), 0x08);
+    
+    // AirGroundStateFlags = register[register[0x31]] = register[0x09] = 8
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        16000000
+        00001031
+        F0000000"
+        );
+    
+    // register[register[0x09]] = register[0x08] = AirGroundStateFlags = 8
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00004009
+        F0000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x08), 0x08);
+    
+    // AirGroundStateFlags = AirGroundStateFlags + register[register[0x09]] = AirGroundStateFlags + register[0x08] = 8 + 8 = 0x10
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        18000000
+        00000000
+        09001000
+        F0000000"
+        );
+    
+    // register[register[0x09]] = register[0x08] = AirGroundStateFlags = 0x10
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        15000000
+        00004009
+        F0000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x08), 0x10);
 }
 
 
