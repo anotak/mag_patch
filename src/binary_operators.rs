@@ -495,7 +495,7 @@ binary_operators! {
     
     (
         /// result is always right hand side
-        0xD0, SetToRightHandSide,
+        0xD0, AssignToRightHandSide,
         |_lhs : f32, rhs : f32| {
             rhs
         },
