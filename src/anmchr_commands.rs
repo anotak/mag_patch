@@ -38,6 +38,7 @@ pub enum AnoCmd
     BinaryOperationVarImmediate = 0x19,
     UnaryOperationVar = 0x1a,
     CheckCharacterName = 0x1b,
+    ConditionalBinaryOperation = 0x1c,
     
     
     SuckX = 0x50,
@@ -355,6 +356,9 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
                 }
             );
             SuckOpponent::apply_suck(exe_char, magnitude, delta);
+        },
+        AnoCmd::ConditionalBinaryOperation => {
+            conditional_binary_operation(exe_char, command_ptr)
         },
     }
 }
@@ -715,6 +719,112 @@ fn unary_operation_var(storage_character : Char, command_ptr : usize)
         },
         _ => {},
     };
+}
+
+fn conditional_binary_operation(storage_character : Char, command_ptr : usize)
+{
+    let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 6 }) };
+    
+    let (comparator_operation, result_operation) = storage::with(
+            storage_character.get_ptr(),
+            |store| {
+                (store.cursor_read_u32_with_replacement(&mut cursor),
+                store.cursor_read_u32_with_replacement(&mut cursor))
+            }
+        );
+    let comparator_operation : Option<BinaryOp> = num::FromPrimitive::from_u32(comparator_operation);
+    let result_operation = num::FromPrimitive::from_u32(result_operation);
+    
+    
+    
+    let lhs = cursor.read_u8().unwrap();
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    let register_flags = RegisterFlags::read(&mut cursor);
+    let destination = cursor.read_u8().unwrap();
+    
+    
+    if let Some(comparator_operation) = comparator_operation 
+        && let Some(result_operation) = result_operation {
+        storage::with(
+            storage_character.get_ptr(),
+            |store| {
+                let lhs = store.resolve_indirect_register(lhs, register_flags.is_lhs_indirect());
+                let destination = store.resolve_indirect_register(destination, register_flags.is_destination_indirect());
+                
+                let op_type = if register_flags.is_destination_bool()
+                    {
+                        RegisterType::Bool
+                    } else {
+                        RegisterType::identify(destination)
+                    };
+                
+                let lhs_type = if register_flags.is_lhs_bool()
+                    {
+                        RegisterType::Bool
+                    } else {
+                        RegisterType::identify(lhs)
+                    };
+                
+                let is_condition_passed = {
+                    match lhs_type {
+                        RegisterType::I32 => {
+                            let rhs_comparator = cursor.read_i32::<LittleEndian>().unwrap();
+                            let comparison = comparator_operation.operate(store.get_number_register(lhs), rhs_comparator);
+                            
+                            comparison.is_true()
+                        },
+                        RegisterType::F32 => {
+                            let rhs_comparator = store.cursor_read_f32_with_replacement(&mut cursor);
+                            let comparison = comparator_operation.operate(store.get_number_register(lhs), rhs_comparator);
+                            
+                            comparison.is_true()
+                        },
+                        RegisterType::Bool => {
+                            let rhs_comparator = cursor.read_i32::<LittleEndian>().unwrap();
+                            let comparison = comparator_operation.operate(store.get_bool(lhs), rhs_comparator.is_true());
+                            
+                            comparison.is_true()
+                        }
+                    }
+                };
+                    
+                if is_condition_passed {
+                    let result_register_flags = register_flags.set_lhs_bool(false);
+                    
+                    match op_type {
+                        RegisterType::F32 => {
+                            let rhs_for_op = store.cursor_read_f32_with_replacement(&mut cursor);
+                            
+                            store.register_imm_operation_f32(destination, rhs_for_op, destination, result_operation, result_register_flags);
+                        },
+                        RegisterType::I32 | RegisterType::Bool => {
+                            let rhs_for_op = cursor.read_i32::<LittleEndian>().unwrap();
+                            
+                            store.register_imm_operation_i32(destination, rhs_for_op, destination, result_operation, result_register_flags);
+                        },
+                    };
+                    
+                    match lhs_type {
+                        RegisterType::I32 => {
+                            let immediate = cursor.read_i32::<LittleEndian>().unwrap();
+                            
+                            store.set_i32_register(lhs, immediate);
+                        },
+                        RegisterType::F32 => {
+                            let immediate = store.cursor_read_f32_with_replacement(&mut cursor);
+                            
+                            store.set_f32_register(lhs, immediate);
+                        },
+                        RegisterType::Bool => {
+                            let immediate = cursor.read_i32::<LittleEndian>().unwrap().is_true();
+                            
+                            store.set_bool(destination, immediate);
+                        }
+                    }
+                }
+            }
+        );
+    }
 }
 
 fn check_character_name(storage_character : Char, command_ptr : usize)

@@ -143,7 +143,7 @@ pub fn clean_float(float : f32) -> f32 {
 
 /// used inside the var_rw! macro to convey type, then whatever cast is needed is done.
 /// also used for registers, similarly
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Number {
     F32(f32),
     I32(i32)

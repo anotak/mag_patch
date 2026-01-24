@@ -781,24 +781,39 @@ pub struct RegisterFlags {
 }
 
 macro_rules! bitflag_getter {
-    ($getter:ident, $bits:literal) => {
+    ($bits:literal, $getter:ident, $setter:ident) => {
         #[allow(dead_code)]
         #[inline]
         pub fn $getter(&self) -> bool
         {
             (self.raw & $bits) == $bits
         }
+        
+        #[allow(dead_code)]
+        #[inline]
+        pub fn $setter(&self, new_value : bool) -> Self
+        {
+            if new_value {
+                Self {
+                    raw : self.raw | $bits
+                }
+            } else {
+                Self {
+                    raw : self.raw & !$bits
+                }
+            }
+        }
     }
 }
 
 
 impl RegisterFlags {
-    bitflag_getter!(is_lhs_bool, 0x01);
-    bitflag_getter!(is_rhs_bool, 0x02);
-    bitflag_getter!(is_destination_bool, 0x04);
-    bitflag_getter!(is_lhs_indirect, 0x10);
-    bitflag_getter!(is_rhs_indirect, 0x20);
-    bitflag_getter!(is_destination_indirect, 0x40);
+    bitflag_getter!(0x01, is_lhs_bool, set_lhs_bool);
+    bitflag_getter!(0x02, is_rhs_bool, set_rhs_bool);
+    bitflag_getter!(0x04, is_destination_bool, set_destination_bool);
+    bitflag_getter!(0x10, is_lhs_indirect, set_lhs_indirect);
+    bitflag_getter!(0x20, is_rhs_indirect, set_rhs_indirect);
+    bitflag_getter!(0x40, is_destination_indirect, set_destination_indirect);
     
     pub fn read(cursor : &mut Cursor<&'static [u8]>) -> Self
     {

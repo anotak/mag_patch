@@ -696,6 +696,43 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_i32(ptr, 0x08), 0x10);
+    
+    // if boolean[0x0a] == false then
+    //    register[0x0a] = register[0x0a] bitwise or 0x7777 = 0x7777
+    //    boolean[0x0a] = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        1C000000
+        C0000000
+        b1000000
+        0A00010A
+        00000000
+        77770000
+        01000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x0a), 0x7777);
+    assert_eq!(get_register_bool(ptr, 0x0a), true);
+    
+    
+    // if boolean[0x0a] == true then
+    //    register[0x0a] = register[0x0a] - 0x07 = 0x7770
+    //    boolean[0x0a] = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        1C000000
+        C0000000
+        01000000
+        0A00010A
+        0000FFF0
+        07000000
+        00000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x0a), 0x7770);
+    assert_eq!(get_register_bool(ptr, 0x0a), false);
 }
 
 
