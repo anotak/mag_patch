@@ -755,6 +755,24 @@ fn test_commands() {
         );
     
     assert_eq!(get_register_i32(ptr, 0x0b), 0x7770);
+    
+    // if boolean[0x0c] == false then
+    //    register[0x0c] = set to 0x2222
+    //    boolean[0x0c] = true
+    test_execute_anmchr_command(
+        ptr,
+        "66000000
+        1C000000
+        C0000000
+        d0000000
+        0C00010C
+        00000000
+        22220000
+        01000000"
+        );
+    
+    assert_eq!(get_register_i32(ptr, 0x0c), 0x2222);
+    assert_eq!(get_register_bool(ptr, 0x0c), true);
 }
 
 
