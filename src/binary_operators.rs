@@ -491,4 +491,37 @@ binary_operators! {
             (lhs >= rhs).from_bool()
         }
     ),
+    
+    
+    (
+        /// result is always right hand side
+        0xD0, SetToRightHandSide,
+        |_lhs : f32, rhs : f32| {
+            rhs
+        },
+        |_lhs : i32, rhs : i32| {
+            rhs
+        }
+    ),
+    (
+        /// if right hand side is true, then result is left hand side.
+        /// if right hand side is false, then result is 0.
+        0xD1, IfTrue,
+        |lhs : f32, rhs : f32| {
+            if rhs.is_true()
+            {
+                lhs
+            } else {
+                0.0
+            }
+        },
+        |lhs : i32, rhs : i32| {
+            if rhs.is_true()
+            {
+                lhs
+            } else {
+                0
+            }
+        }
+    ),
 }
