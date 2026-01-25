@@ -1,6 +1,6 @@
-i wanna start by saying that custom commands are never supposed to crash the game, even if you made a "mistake" with using them. so please let me know if they do.
+First off, custom commands are never supposed to crash the game, even if you made a "mistake" with using them. So please let me know if they do.
 
-so for 66_10 - 66_18, i gotta explain what a register is. a register is like, a custom variable basically, it's a place where you can store whatever you want. there's 128 registers for storing integers (whole numbers) and 128 registers for storing floating point numbers (numbers with decimals)
+For 66_10 - 66_18, i gotta explain what a register is. A register is like, a custom variable basically. It's a place where you can store whatever you want. there's 128 registers for storing integers (whole numbers) and 128 registers for storing floating point numbers (numbers with decimals).
 
 these are numbered
 00-7f: integer registers
@@ -9,7 +9,31 @@ so basically if it starts with an 8, 9, a,b,c,d,e,f it's a floating point regist
 
 registers all default to storing 0 at the start of a game. also note that any registers will never get set to an invalid number like infinity or "[not a number](https://en.wikipedia.org/wiki/NaN)" if you do something like division by 0, instead they'll be set back to 0. if you notice something being set to NaN or infinity, please report it as a bug.
 
-also, for all of these, any time you use one of these, the "condition register" gets set to the result, which is the thing used for the game's existing conditional commands like 0_02. i only tested 0_02 and 0_08 but the other should probably work too. so this is gonna be big way to get more complicated logics
+Also, for all of these, any time you use one of these, the "condition register" gets set to the result, which is the thing used for the game's existing conditional commands like 0_02. This is how you get more complex logic.
+
+There's an additional separate 128 boolean registers, also numbered 00-FF. Booleans are true (any nonzero number, by default 1) or false (0). These are accessed by flags on all the register commands.
+
+Most of the commands have a 4 byte line in them that takes the following format:
+LLRRFFDD
+LL - Left hand side register
+RR - Right hand side register. For commands 66_15-66_1a with character variables, RR is extra flags that control which character is chosen instead (explained below in the 66_15 section).
+FF - Register flags (affects how LL RR and DD work)
+DD - Destination register
+
+This will make more sense looking at the commands below, but basically these commands take 3 registers.
+
+Those FF flags are the following:
+| Number | Description |
+| ------------- | ------------- |
+| 0x01  | Left hand side is boolean |
+| 0x02  | Right hand side is boolean |
+| 0x04  | Destination is boolean |
+| 0x10  | Left hand side is indirect register lookup |
+| 0x20  | Right hand side is indirect register lookup |
+| 0x40  | Destination is indirect register lookup |
+
+Indirect register lookup means that, say you put register "05". With indirect register lookup, it looks in the value in register 05, and then chooses the actual register based on that. So if register 05 has 08 in it, then the actual number it gets will be the contents of register 08.
+
 
 ## 66_10, load immediate into register.
 immediate is just the term for like a number that you typed in yourself, and not like a variable
@@ -24,6 +48,16 @@ so the format here is, that 3rd line is 00 00 00 are ignored, and then that FF i
 the 9999d93F is 1.7 in floating point of course
 
 so this sets register FF to 1.7 !
+
+If you wanted to set boolean register FF to true, then you would do
+```
+66000000
+10000000
+000004FF
+01000000
+```
+The 04 says that the destination register is the boolean register.
+Again, this is separate from floating point register FF. So boolean register can have `true` in it, while floating point register has 1.7 in it.
 
 okay so let's say you wanna do some math with this.
 
@@ -270,6 +304,32 @@ Then there is the name as a string, up to 64 bytes, and should end in 00s
 
 The above example will check if the opponent's character (80) is named `Gui` and load it into register 17. The result will be 1 if it is `Gui`, and 0 if it isn't. This works with any modded character.
 
+## 66_1c is a conditional binary operation with registers and immediates
+
+This command runs one binary operation with a register and immediate. It checks if the result is `true` (see above about booleans). If it's false, it does nothing further. If it is, true, it runs a second different operation with a different register and  different immediate. It then sets that second register to the result. Then, it sets the original first register to a third immediate.
+
+The most common reason to use this is the following: imagine you want to set a number register to a default value, so you'd keep track of whether or not it's been set in a boolean register with the same register number.
+
+You could do that like so:
+```
+66000000
+1C000000
+C0000000
+d0000000
+0C00010C
+00000000
+22220000
+01000000
+```
+In short terms, this sets register 0C to the default value 0x2222. So if you want to just use this for default values, just change the two `0C`s to the register you want to have a default value, and the `22220000` to whatever default value you want it to have. Just make sure you use it on any animation where you might reference register `0c`.
+
+The long explantion is:
+First operation: `C0000000`: check equality, between the left-hand side boolean register `0c`, and the immediate `00000000`. So, we're checking if boolean register `0c` is false.
+
+If the boolean register is equal to false, then:
+Second operation: `d0000000`: Assign destination register `0c` equal to the second immediate `22220000`.
+Then, set the left hand side boolean register to true (`01000000`).
+
 
 ## Float replacement
 You should be able to replace any floating point value in another command with a register by just putting XXFFFFFF instead of the float. This doesn't work with integers unfortunately.
@@ -366,6 +426,11 @@ pub enum BinaryOp {
     /// left hand side >= right hand side
     /// true results are 1 and false are 0
     GreaterThanEqual = 0xC4,
+    /// result is always right hand side
+    AssignToRightHandSide = 0xD0,
+    /// if right hand side is true, then result is left hand side.
+    /// if right hand side is false, then result is 0.
+    IfTrue = 0xD1,
 }
 ```
 
