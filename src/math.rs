@@ -196,3 +196,21 @@ impl BoolRoundtrip for Number {
         self.is_true().from_bool()
     }
 }
+
+pub trait IntoNumber {
+    fn into_number(&self) -> Number;
+}
+
+impl IntoNumber for f32 {
+    fn into_number(&self) -> Number
+    {
+        Number::F32(*self)
+    }
+}
+
+impl IntoNumber for i32 {
+    fn into_number(&self) -> Number
+    {
+        Number::I32(*self)
+    }
+}

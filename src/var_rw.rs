@@ -3,8 +3,11 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use crate::match_state;
-use crate::game_data::Char;
+use crate::game_data::{Char};
 use crate::math::*;
+use crate::storage::{RegisterType};
+use crate::storage;
+use num_derive::FromPrimitive;
 
 macro_rules! var_rw {
     
@@ -14,8 +17,6 @@ macro_rules! var_rw {
         $( ( $(#[$($attrss1:tt)*])* $id:literal, $(#[$($attrss2:tt)*])* $name:ident, $default_type:ident, $read:expr, $write:expr $(,)*) ),+
         $(,)*
     } => {
-        use crate::storage::RegisterType;
-        use num_derive::FromPrimitive;
         #[derive(FromPrimitive)]
         #[repr(u32)]
         pub enum $type_name
@@ -146,6 +147,42 @@ macro_rules! var_rw {
             }
         }
     }
+}
+
+var_rw! {
+    { ProjectileState };
+    
+    (
+        /// 0.0 is the middle of the stage
+        0x20, XPosition,
+        F32,
+        |ptr| {
+            Number::F32(storage::with_stored_projectile(ptr, 0.0, |p| {
+                crate::debug_msg(format!("x_pos {}\n", p.get_x_pos()));
+                p.get_x_pos()
+            }))
+        },
+        |ptr, new_value| {
+            storage::with_stored_projectile(ptr, (), |p| {
+                p.set_x_pos(new_value as f32)
+            })
+        },
+    ),
+    (
+        /// Floor is 0.0, upward is positive
+        0x21, YPosition,
+        F32,
+        |ptr| {
+            Number::F32(storage::with_stored_projectile(ptr, 0.0, |p| {
+                p.get_y_pos()
+            }))
+        },
+        |ptr, new_value| {
+            storage::with_stored_projectile(ptr, (), |p| {
+                p.set_y_pos(new_value as f32)
+            })
+        },
+    ),
 }
 
 var_rw! {

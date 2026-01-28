@@ -38,7 +38,8 @@ pub fn reset_all() {
     }
 }
 
-/// call to retrieve a new storage
+/// call to retrieve a new storage.
+/// note that if you call storage::with from inside itself, it will deadlock.
 pub fn with<F, T>(key : usize, function : F) -> T
     where F : FnOnce(&mut CharStore) -> T
 {
@@ -48,29 +49,28 @@ pub fn with<F, T>(key : usize, function : F) -> T
         storage.insert(key, CharStore::new(key));
     }
     
-    let store = storage.get_mut(&key).unwrap();
+    let mut store = storage.get_mut(&key).unwrap();
     
-    let result = function(store);
+    let result = function(&mut store);
     
     result
 }
 
-pub fn with_no_make<F>(key : usize, function : F)
-    where F : FnOnce(&mut CharStore)
+pub fn with_no_make<F,T>(key : usize, function : F) -> Option<T>
+    where F : FnOnce(&mut CharStore) -> T
 {
     let mut storage = CHAR_STORAGE.lock().unwrap();
     
     if !storage.contains_key(&key) {
-        return;
+        return None;
     }
     
-    let store = storage.get_mut(&key).unwrap();
+    let mut store = storage.get_mut(&key).unwrap();
     
-    let result = function(store);
+    let result = function(&mut store);
     
-    result
+    Some(result)
 }
-
 
 const REGISTER_COUNT : usize = 128;
 const BOOL_COUNT : usize = REGISTER_COUNT * 2;
@@ -86,6 +86,8 @@ pub struct CharStore
     ints : Option<Box<[i32; REGISTER_COUNT]>>,
     
     pub suck_opponent : character_extensions::SuckOpponent,
+    
+    pub projectile_filter : Option<crate::game_data::ProjectileFilter>,
 }
 
 impl CharStore {
@@ -99,6 +101,7 @@ impl CharStore {
                 magnitude : 0.0,
                 delta : 0.0,
             },
+            projectile_filter : None,
         }
     }
     
@@ -819,6 +822,39 @@ impl RegisterFlags {
     {
         Self {
             raw : cursor.read_u8().unwrap()
+        }
+    }
+}
+
+pub fn with_stored_projectile<F, T>(addr : usize, default : T, function : F) -> T
+    where F : FnOnce(crate::game_data::Projectile) -> T
+{
+    if addr == 0 {
+        default
+    } else {
+        crate::debug_msg(format!("addr = {:#X}\n", addr));
+        
+        
+        let projectile = with_no_make(
+            addr,
+            |store| {
+                crate::debug_msg(format!("does this function even run\n"));
+                match store.projectile_filter {
+                    None => None,
+                    Some(ref filter) => {
+                        
+                        crate::debug_msg(format!("filter = {:?}\n", filter));
+                        filter.projectile
+                    },
+                }
+            }
+        ).flatten();
+        
+        match projectile {
+            Some(projectile) => {
+                function(projectile)
+            },
+            None => default,
         }
     }
 }
