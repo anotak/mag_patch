@@ -153,6 +153,22 @@ var_rw! {
     { ProjectileState };
     
     (
+        /// Duration remaining. Negative values last forever.
+        0x00, Duration,
+        F32,
+        |ptr| {
+            Number::F32(storage::with_stored_projectile(ptr, 0.0, |p| {
+                p.get_duration()
+            }))
+        },
+        |ptr, new_value| {
+            storage::with_stored_projectile(ptr, (), |p| {
+                p.set_duration(new_value as f32)
+            })
+        },
+    ),
+    
+    (
         /// 0.0 is the middle of the stage
         0x20, XPosition,
         F32,
@@ -181,6 +197,20 @@ var_rw! {
             storage::with_stored_projectile(ptr, (), |p| {
                 p.set_y_pos(new_value as f32)
             })
+        },
+    ),
+    
+    (
+        /// Projectile Class ID
+        0xB0, TypeHash,
+        I32,
+        |ptr| {
+            Number::I32(storage::with_stored_projectile(ptr, 0, |p| {
+                p.get_shot_resource().get_shot_file().get_type_hash()
+            }))
+        },
+        |_ptr, _new_value| {
+            ()
         },
     ),
 }
