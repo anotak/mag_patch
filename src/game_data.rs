@@ -4,9 +4,15 @@
 use crate::hook_helpers::*;
 use std::fmt;
 use num_derive::FromPrimitive;
+use crate::bitflag_getter;
+use std::io::{Cursor};
+use byteorder::{LittleEndian, ReadBytesExt};
 
 const CHAR_NODES_BASE : usize = 0xD44A70;
 const TEAMS_BASE : usize = 0xD47E68;
+
+const P1_PROJECTILE_BASE : usize = EXE_BASE + 0xD47F98;
+const P2_PROJECTILE_BASE : usize = EXE_BASE + 0xD47FC0;
 
 /// We set up getters and setters for basic offsetted values inside structs like so. Setting them up this way reduces code duplication / chance mistakes.
 macro_rules! offset_getter_and_setter {
@@ -606,6 +612,36 @@ impl Char {
         }
     }
     
+    pub fn get_projectiles(&self, filter_flags : ProjectileFilterFlags) -> Option<ProjectileFilter>
+    {
+        let player = self.player();
+        
+        
+        if let Some(player) = player {
+            let iter = player.get_projectiles();
+            
+            let iter = if filter_flags.is_filter_backwards() {
+                iter.map(|iter| iter.create_backward()).flatten()
+            } else {
+                iter
+            };
+            
+            if let Some(iter) = iter {
+                let filter = ProjectileFilter {
+                    current_owner : Some(self.clone()),
+                    iter : iter,
+                    projectile : None,
+                };
+                
+                Some(filter)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    
     pub fn get_ptr(&self) -> usize {
         self.ptr
     }
@@ -847,6 +883,18 @@ impl Player {
         Self::new(get_p2_ptr())
     }
     
+    pub fn get_projectiles(&self) -> Option<ProjectileIterator> {
+        // TODO - should we find a way that feels less riskily hard-coded to do this?
+        if self.ptr == get_p1_ptr()
+        {
+            Some(ProjectileIterator::get_p1())
+        } else if self.ptr == get_p2_ptr() {
+            Some(ProjectileIterator::get_p2())
+        } else {
+            None
+        }
+    }
+    
     pub fn char_nodes(&self) -> CharNode
     {
         CharNode {
@@ -924,4 +972,216 @@ impl Player {
     offset_getter_and_setter!(get_team_combo_counter, _set_team_combo_counter_dont_use, i32, 0x90);
     // FIXME - clamp this properly
     //offset_getter_and_setter!(get_xfactor_timer, set_xfactor_timer_raw, f32, 0xC0);
+}
+
+
+/// offset to add to projectile pointers to get at most elements
+/// because the nodes we iterate over are in the middle of the struct
+const PROJ_OFFSET : isize = -0x1450;
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[repr(C)]
+pub struct Projectile
+{
+    ptr : usize,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[repr(C)]
+pub struct ProjectileIterator
+{
+    ptr : Option<usize>,
+    direction : IterationDirection
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ProjectileFilter
+{
+    current_owner : Option<Char>,
+    iter : ProjectileIterator,
+    pub projectile : Option<Projectile>
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+enum IterationDirection
+{
+    // newest first
+    Forward,
+    // oldest first
+    Backward
+}
+
+impl ProjectileFilter {
+    fn filter(&self, projectile : &Projectile) -> bool
+    {
+        match &self.current_owner {
+            Some(current_owner) => {
+                if projectile.get_current_owner() != *current_owner {
+                    false
+                } else {
+                    true
+                }
+            },
+            None => true,
+        }
+    }
+    
+    pub fn step(&mut self) {
+        let mut iter = self.iter.clone();
+        
+        self.projectile = iter.by_ref().filter(|p| self.filter(p)).next();
+        
+        self.iter = iter;
+    }
+}
+
+impl Iterator for ProjectileIterator {
+    type Item = Projectile;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.ptr == None
+        {
+            return None;
+        }
+        
+        // check if we are at the root of the list
+        if self.ptr == Some(P1_PROJECTILE_BASE)
+          || self.ptr == Some(P2_PROJECTILE_BASE)
+        {
+            // note, no direction check here because it just doesnt make sense
+            self.ptr = Some(unsafe {
+                read_usize(self.ptr.unwrap() + 0x08)
+            });
+            
+            if self.ptr == Some(P1_PROJECTILE_BASE)
+              || self.ptr == Some(P2_PROJECTILE_BASE)
+            {
+                self.ptr = None;
+                // list is just empty so don't loop forever
+                return None;
+            }
+        }
+        
+        if (self.ptr.unwrap() as *const usize).is_null() {
+            self.ptr = None;
+            None
+        } else {
+            let out = Projectile {
+                ptr : self.ptr.unwrap()
+            };
+            
+            let offset = match self.direction {
+                IterationDirection::Forward => 0x08,
+                IterationDirection::Backward => 0x10,
+            };
+            
+            self.ptr = Some(unsafe {
+                read_usize(self.ptr.unwrap() + offset)
+            });
+            
+            // check if we are at the root of the list
+            if self.ptr == Some(P1_PROJECTILE_BASE)
+              || self.ptr == Some(P2_PROJECTILE_BASE)
+            {
+                self.ptr = None;
+            }
+            
+            Some(out)
+        }
+    }
+}
+
+impl ProjectileIterator {
+    pub fn get_p1() -> ProjectileIterator
+    {
+        ProjectileIterator {
+            ptr : Some(P1_PROJECTILE_BASE),
+            direction : IterationDirection::Forward,
+        }
+    }
+    
+    pub fn get_p2() -> ProjectileIterator
+    {
+        ProjectileIterator {
+            ptr : Some(P2_PROJECTILE_BASE),
+            direction : IterationDirection::Forward,
+        }
+    }
+    
+    pub fn create_backward(&self) -> Option<ProjectileIterator>
+    {
+        let last = self.last();
+        
+        match last {
+            Some(last) => 
+                Some(ProjectileIterator {
+                    ptr : Some(last.ptr),
+                    direction : IterationDirection::Backward,
+                }),
+            None => None,
+        }
+    }
+}
+
+impl Projectile {
+    pub fn get_current_owner(&self) -> Char
+    {
+        Char {
+            ptr : self.get_current_owner_raw()
+        }
+    }
+    
+    pub fn get_shot_resource(&self) -> ShotResource
+    {
+        ShotResource {
+            ptr : self.get_shot_resource_raw(),
+        }
+    }
+    
+    offset_getter_and_setter!(get_x_pos, set_x_pos, f32, 0x50 + PROJ_OFFSET);
+    offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54 + PROJ_OFFSET);
+    offset_getter_and_setter!(get_duration, set_duration, f32, 0x2078 + PROJ_OFFSET);
+    offset_getter_and_setter!(get_current_owner_raw, set_current_owner_raw, usize, 0x2000 + PROJ_OFFSET);
+    offset_getter_and_setter!(get_shot_resource_raw, set_shot_resource_raw, usize, 0x16f8 + PROJ_OFFSET);
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ShotResource {
+    ptr : usize,
+}
+
+impl ShotResource {
+    pub fn get_shot_file(&self) -> ShotFile {
+        ShotFile {
+            ptr : self.get_shot_file_raw(),
+        }
+    }
+    
+    offset_getter_and_setter!(get_shot_file_raw, set_shot_file_raw, usize, 0x78);
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ShotFile {
+    ptr : usize,
+}
+
+impl ShotFile {
+    offset_getter_and_setter!(get_type_hash, set_type_hash, i32, 0x08);
+}
+
+#[repr(transparent)]
+pub struct ProjectileFilterFlags {
+    raw : u32,
+}
+
+
+impl ProjectileFilterFlags {
+    bitflag_getter!(0x01, is_filter_backwards);
+    
+    pub fn read(cursor : &mut Cursor<&'static [u8]>) -> Self
+    {
+        Self {
+            raw : cursor.read_u32::<LittleEndian>().unwrap()
+        }
+    }
 }

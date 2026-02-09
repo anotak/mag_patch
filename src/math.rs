@@ -214,3 +214,42 @@ impl IntoNumber for i32 {
         Number::I32(*self)
     }
 }
+
+#[macro_export]
+macro_rules! bitflag_getset {
+    ($bits:literal, $getter:ident, $setter:ident) => {
+        #[allow(dead_code)]
+        #[inline]
+        pub fn $getter(&self) -> bool
+        {
+            (self.raw & $bits) == $bits
+        }
+        
+        #[allow(dead_code)]
+        #[inline]
+        pub fn $setter(&self, new_value : bool) -> Self
+        {
+            if new_value {
+                Self {
+                    raw : self.raw | $bits
+                }
+            } else {
+                Self {
+                    raw : self.raw & !$bits
+                }
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! bitflag_getter {
+    ($bits:literal, $getter:ident) => {
+        #[allow(dead_code)]
+        #[inline]
+        pub fn $getter(&self) -> bool
+        {
+            (self.raw & $bits) == $bits
+        }
+    }
+}

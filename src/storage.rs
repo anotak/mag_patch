@@ -19,6 +19,7 @@ use crate::game_data::{Char};
 use crate::reload::Reload;
 use crate::hook_helpers::read_ptr_no_check;
 use crate::math::*;
+use crate::bitflag_getset;
 use crate::math;
 
 /// usize is usually pointer to owning object
@@ -783,40 +784,14 @@ pub struct RegisterFlags {
     raw : u8,
 }
 
-macro_rules! bitflag_getter {
-    ($bits:literal, $getter:ident, $setter:ident) => {
-        #[allow(dead_code)]
-        #[inline]
-        pub fn $getter(&self) -> bool
-        {
-            (self.raw & $bits) == $bits
-        }
-        
-        #[allow(dead_code)]
-        #[inline]
-        pub fn $setter(&self, new_value : bool) -> Self
-        {
-            if new_value {
-                Self {
-                    raw : self.raw | $bits
-                }
-            } else {
-                Self {
-                    raw : self.raw & !$bits
-                }
-            }
-        }
-    }
-}
-
 
 impl RegisterFlags {
-    bitflag_getter!(0x01, is_lhs_bool, set_lhs_bool);
-    bitflag_getter!(0x02, is_rhs_bool, set_rhs_bool);
-    bitflag_getter!(0x04, is_destination_bool, set_destination_bool);
-    bitflag_getter!(0x10, is_lhs_indirect, set_lhs_indirect);
-    bitflag_getter!(0x20, is_rhs_indirect, set_rhs_indirect);
-    bitflag_getter!(0x40, is_destination_indirect, set_destination_indirect);
+    bitflag_getset!(0x01, is_lhs_bool, set_lhs_bool);
+    bitflag_getset!(0x02, is_rhs_bool, set_rhs_bool);
+    bitflag_getset!(0x04, is_destination_bool, set_destination_bool);
+    bitflag_getset!(0x10, is_lhs_indirect, set_lhs_indirect);
+    bitflag_getset!(0x20, is_rhs_indirect, set_rhs_indirect);
+    bitflag_getset!(0x40, is_destination_indirect, set_destination_indirect);
     
     pub fn read(cursor : &mut Cursor<&'static [u8]>) -> Self
     {
@@ -832,18 +807,12 @@ pub fn with_stored_projectile<F, T>(addr : usize, default : T, function : F) -> 
     if addr == 0 {
         default
     } else {
-        crate::debug_msg(format!("addr = {:#X}\n", addr));
-        
-        
         let projectile = with_no_make(
             addr,
             |store| {
-                crate::debug_msg(format!("does this function even run\n"));
                 match store.projectile_filter {
                     None => None,
                     Some(ref filter) => {
-                        
-                        crate::debug_msg(format!("filter = {:?}\n", filter));
                         filter.projectile
                     },
                 }

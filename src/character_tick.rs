@@ -51,7 +51,14 @@ fn generic_character_tick(owner : Char) {
     
     storage::with_no_make(owner.get_ptr(), |store|
         {
-            store.suck_opponent.handle_suck(owner)
+            store.suck_opponent.handle_suck(owner);
+            
+            match store.projectile_filter {
+                Some(_) => { crate::debug_msg(format!("erasing\n"));},
+                None => (),
+            };
+            
+            store.projectile_filter = None;
         }
     );
 }
