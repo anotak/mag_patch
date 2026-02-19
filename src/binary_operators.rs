@@ -11,7 +11,7 @@ macro_rules! binary_operators {
     } => {
         use num_derive::FromPrimitive;
         use crate::math::Number;
-        #[derive(Debug, Copy, Clone, FromPrimitive)]
+        #[derive(Debug, Copy, Clone, FromPrimitive, PartialEq, Eq)]
         #[repr(u32)]
         pub enum BinaryOp
         {

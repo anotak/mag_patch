@@ -1,12 +1,17 @@
 // we're going to be doing a lot of unsafe stuff so yeah
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use crate::hook_helpers::*;
 use std::fmt;
 use num_derive::FromPrimitive;
-use crate::bitflag_getter;
 use std::io::{Cursor};
 use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::hook_helpers::*;
+use crate::var_rw;
+use crate::bitflag_getter;
+use crate::math::*;
+use crate::binary_operators::{BinaryOp,BinaryOpHandler};
+use crate::storage::RegisterType;
 
 const CHAR_NODES_BASE : usize = 0xD44A70;
 const TEAMS_BASE : usize = 0xD47E68;
@@ -22,7 +27,9 @@ macro_rules! offset_getter_and_setter {
         pub fn $getter(&self) -> $ty
         {
             let offset = ($offset) as usize;
-            unsafe { read_ptr_no_check::<$ty>(self.ptr + offset) }
+            let ptr = self.ptr.wrapping_add(offset);
+            
+            unsafe { read_ptr_no_check::<$ty>(ptr) }
         }
         
         #[allow(dead_code)]
@@ -30,7 +37,9 @@ macro_rules! offset_getter_and_setter {
         pub fn $setter(&self, value : $ty)
         {
             let offset = ($offset) as usize;
-            unsafe { write_ptr::<$ty>(self.ptr + offset, value) }
+            let ptr = self.ptr.wrapping_add(offset);
+            
+            unsafe { write_ptr::<$ty>(ptr, value) }
         }
     }
 }
@@ -42,7 +51,8 @@ macro_rules! offset_getter_and_setter_flag {
         pub fn $getter(&self) -> bool
         {
             let offset = ($offset) as usize;
-            let value = unsafe { read_ptr_no_check::<$ty>(self.ptr + offset) };
+            let ptr = self.ptr.wrapping_add(offset);
+            let value = unsafe { read_ptr_no_check::<$ty>(ptr) };
             
             if (value & const { $flag }) == const { $flag } {
                 true
@@ -55,15 +65,16 @@ macro_rules! offset_getter_and_setter_flag {
         pub fn $setter(&self, new_value : bool)
         {
             let offset = ($offset) as usize;
+            let ptr = self.ptr.wrapping_add(offset);
             
-            let value = unsafe { read_ptr_no_check::<$ty>(self.ptr + offset) };
+            let value = unsafe { read_ptr_no_check::<$ty>(ptr) };
             let value = if new_value {
                 value | const { $flag }
             } else {
                 value & const { !$flag }
             };
             
-            unsafe { write_ptr::<$ty>(self.ptr + offset, value) }
+            unsafe { write_ptr::<$ty>(ptr, value) }
         }
     }
 }
@@ -612,7 +623,7 @@ impl Char {
         }
     }
     
-    pub fn get_projectiles(&self, filter_flags : ProjectileFilterFlags) -> Option<ProjectileFilter>
+    pub fn get_projectiles(&self, filter_flags : ProjectileFilterFlags, op_filter : Option<ProjectileOpFilter>) -> Option<ProjectileFilter>
     {
         let player = self.player();
         
@@ -631,6 +642,7 @@ impl Char {
                     current_owner : Some(self.clone()),
                     iter : iter,
                     projectile : None,
+                    op_filter :  op_filter,
                 };
                 
                 Some(filter)
@@ -994,12 +1006,13 @@ pub struct ProjectileIterator
     direction : IterationDirection
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct ProjectileFilter
 {
     current_owner : Option<Char>,
     iter : ProjectileIterator,
-    pub projectile : Option<Projectile>
+    pub projectile : Option<Projectile>,
+    op_filter : Option<ProjectileOpFilter>
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -1014,7 +1027,7 @@ enum IterationDirection
 impl ProjectileFilter {
     fn filter(&self, projectile : &Projectile) -> bool
     {
-        match &self.current_owner {
+        let is_correct_owner = match &self.current_owner {
             Some(current_owner) => {
                 if projectile.get_current_owner() != *current_owner {
                     false
@@ -1023,6 +1036,36 @@ impl ProjectileFilter {
                 }
             },
             None => true,
+        };
+        
+        if is_correct_owner {
+            match &self.op_filter {
+                Some(op_filter) => {
+                    let lhs = var_rw::ProjectileState::load_number(projectile.get_ptr(), op_filter.variable_id);
+                    let rhs = op_filter.immediate;
+                    
+                    let variable_type = var_rw::ProjectileState::get_number_type(op_filter.variable_id);
+                    
+                    //debug_msg(format!("ptr = {:#X}\nop = {:?}\nlhs = {:X}\nrhs = {:X}\nvar_id = {:#X}\nvar_type = {:?}", projectile.get_ptr(), op_filter.op, lhs, rhs, op_filter.variable_id, variable_type));
+                    
+                    match variable_type {
+                        Some(RegisterType::F32) => {
+                            let result : f32 = op_filter.op.operate(lhs, rhs);
+                            
+                            result.is_true()
+                        },
+                        Some(RegisterType::I32 | RegisterType::Bool) => {
+                            let result : i32 = op_filter.op.operate(lhs, rhs);
+                            
+                            result.is_true()
+                        }
+                        None => false,
+                    }
+                },
+                None => true,
+            }
+        } else {
+            false
         }
     }
     
@@ -1124,6 +1167,22 @@ impl ProjectileIterator {
 }
 
 impl Projectile {
+    pub fn if_valid<F, T>(addr : usize, default : T, function : F) -> T
+        where F : FnOnce(Self) -> T
+    {
+        if addr == 0 {
+            default
+        } else {
+            let projectile = Self { ptr : addr };
+            
+            function(projectile)
+        }
+    }
+    
+    pub fn get_ptr(&self) -> usize {
+        self.ptr
+    }
+    
     pub fn get_current_owner(&self) -> Char
     {
         Char {
@@ -1167,6 +1226,24 @@ pub struct ShotFile {
 
 impl ShotFile {
     offset_getter_and_setter!(get_type_hash, set_type_hash, i32, 0x08);
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct ProjectileOpFilter {
+    op : BinaryOp,
+    variable_id : u32,
+    immediate : Number,
+}
+
+impl ProjectileOpFilter {
+    pub fn binary_op_immediate(op : BinaryOp, variable_id : u32, immediate : Number) -> Self
+    {
+        Self {
+            op,
+            variable_id,
+            immediate,
+        }
+    }
 }
 
 #[repr(transparent)]

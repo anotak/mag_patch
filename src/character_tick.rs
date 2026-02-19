@@ -54,7 +54,7 @@ fn generic_character_tick(owner : Char) {
             store.suck_opponent.handle_suck(owner);
             
             match store.projectile_filter {
-                Some(_) => { crate::debug_msg(format!("erasing\n"));},
+                Some(_) => (),
                 None => (),
             };
             

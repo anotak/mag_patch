@@ -3,10 +3,9 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use crate::match_state;
-use crate::game_data::{Char};
+use crate::game_data::{Char, Projectile};
 use crate::math::*;
 use crate::storage::{RegisterType};
-use crate::storage;
 use num_derive::FromPrimitive;
 
 macro_rules! var_rw {
@@ -157,12 +156,12 @@ var_rw! {
         0x00, Duration,
         F32,
         |ptr| {
-            Number::F32(storage::with_stored_projectile(ptr, 0.0, |p| {
+            Number::F32(Projectile::if_valid(ptr, 0.0, |p| {
                 p.get_duration()
             }))
         },
         |ptr, new_value| {
-            storage::with_stored_projectile(ptr, (), |p| {
+            Projectile::if_valid(ptr, (), |p| {
                 p.set_duration(new_value as f32)
             })
         },
@@ -173,13 +172,12 @@ var_rw! {
         0x20, XPosition,
         F32,
         |ptr| {
-            Number::F32(storage::with_stored_projectile(ptr, 0.0, |p| {
-                crate::debug_msg(format!("x_pos {}\n", p.get_x_pos()));
+            Number::F32(Projectile::if_valid(ptr, 0.0, |p| {
                 p.get_x_pos()
             }))
         },
         |ptr, new_value| {
-            storage::with_stored_projectile(ptr, (), |p| {
+            Projectile::if_valid(ptr, (), |p| {
                 p.set_x_pos(new_value as f32)
             })
         },
@@ -189,12 +187,12 @@ var_rw! {
         0x21, YPosition,
         F32,
         |ptr| {
-            Number::F32(storage::with_stored_projectile(ptr, 0.0, |p| {
+            Number::F32(Projectile::if_valid(ptr, 0.0, |p| {
                 p.get_y_pos()
             }))
         },
         |ptr, new_value| {
-            storage::with_stored_projectile(ptr, (), |p| {
+            Projectile::if_valid(ptr, (), |p| {
                 p.set_y_pos(new_value as f32)
             })
         },
@@ -205,7 +203,7 @@ var_rw! {
         0xB0, TypeHash,
         I32,
         |ptr| {
-            Number::I32(storage::with_stored_projectile(ptr, 0, |p| {
+            Number::I32(Projectile::if_valid(ptr, 0, |p| {
                 p.get_shot_resource().get_shot_file().get_type_hash()
             }))
         },

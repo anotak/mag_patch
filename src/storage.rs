@@ -676,7 +676,7 @@ impl CharStore {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum RegisterType {
     I32,
     F32,
@@ -804,6 +804,7 @@ impl RegisterFlags {
 pub fn with_stored_projectile<F, T>(addr : usize, default : T, function : F) -> T
     where F : FnOnce(crate::game_data::Projectile) -> T
 {
+    //crate::debug_msg(format!("with stored proj from character {:X}\n\n{}", addr, std::backtrace::Backtrace::force_capture()));
     if addr == 0 {
         default
     } else {

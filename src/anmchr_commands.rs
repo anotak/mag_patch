@@ -42,6 +42,7 @@ pub enum AnoCmd
     
     GetProjectile = 0x30,
     NextProjectile = 0x31,
+    GetProjectileFiltered = 0x32,
     
     LoadProjectileVarIntoRegister = 0x35,
     StoreProjectileVarFromRegister = 0x36,
@@ -397,40 +398,49 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::GetProjectile => {
             get_projectile(exe_char, command_ptr)
         },
+        AnoCmd::GetProjectileFiltered => {
+            get_projectile_filtered(exe_char, command_ptr)
+        },
         AnoCmd::NextProjectile => {
             next_projectile(exe_char, command_ptr)
         },
         AnoCmd::LoadProjectileVarIntoRegister => {
             load_var_into_register(exe_char, command_ptr,
                 |variable_character, destination_type, var| {
-                    match destination_type {
-                        RegisterType::F32 => {
-                            var_rw::ProjectileState::load_f32(variable_character.get_ptr(), var).into_number()
-                        },
-                        RegisterType::I32 => {
-                            var_rw::ProjectileState::load_i32(variable_character.get_ptr(), var).into_number()
-                        },
-                        RegisterType::Bool => {
-                            var_rw::ProjectileState::load_i32(variable_character.get_ptr(), var).into_number()
-                        },
-                    }
+                    crate::debug_msg(format!("getting proj variable?"));
+                    
+                    storage::with_stored_projectile(variable_character.get_ptr(), 0.into_number(), |projectile| {
+                        match destination_type {
+                            RegisterType::F32 => {
+                                var_rw::ProjectileState::load_f32(projectile.get_ptr(), var).into_number()
+                            },
+                            RegisterType::I32 => {
+                                var_rw::ProjectileState::load_i32(projectile.get_ptr(), var).into_number()
+                            },
+                            RegisterType::Bool => {
+                                var_rw::ProjectileState::load_i32(projectile.get_ptr(), var).into_number()
+                            },
+                        }
+                    })
                 }
             )
         },
         
         AnoCmd::StoreProjectileVarFromRegister => {
             store_var_from_register(exe_char, command_ptr, |variable_character, var, source_type, source_value| {
-                match source_type {
-                    RegisterType::F32 => {
-                        var_rw::ProjectileState::store_f32(variable_character.get_ptr(), var, source_value.into_float());
-                    },
-                    RegisterType::I32 => {
-                        var_rw::ProjectileState::store_i32(variable_character.get_ptr(), var, source_value.into_int());
-                    },
-                    RegisterType::Bool => {
-                        var_rw::ProjectileState::store_i32(variable_character.get_ptr(), var, source_value.into_int());
-                    },
-                }
+                storage::with_stored_projectile(variable_character.get_ptr(), (), |projectile| {
+                    match source_type {
+                        RegisterType::F32 => {
+                            var_rw::ProjectileState::store_f32(projectile.get_ptr(), var, source_value.into_float());
+                        },
+                        RegisterType::I32 => {
+                            var_rw::ProjectileState::store_i32(projectile.get_ptr(), var, source_value.into_int());
+                        },
+                        RegisterType::Bool => {
+                            var_rw::ProjectileState::store_i32(projectile.get_ptr(), var, source_value.into_int());
+                        },
+                    }
+                });
             })
         },
     }
@@ -454,7 +464,6 @@ fn load_var_into_register<F>(storage_character : Char, command_ptr : usize, load
         |store| {
             store.resolve_indirect_register(destination, register_flags.is_destination_indirect())
         });
-    
     
     let destination_type = if register_flags.is_destination_bool()
         {
@@ -999,7 +1008,7 @@ fn get_projectile(storage_character : Char, command_ptr : usize)
     
     // note that we get the projectiles of variable_character
     // but we're storing on storage_character
-    let projectile_filter = variable_character.get_projectiles(filter_flags);
+    let projectile_filter = variable_character.get_projectiles(filter_flags, None);
     
     let result = storage::with(
         storage_character.get_ptr(),
@@ -1030,37 +1039,144 @@ fn get_projectile(storage_character : Char, command_ptr : usize)
 }
 
 
+fn get_projectile_filtered(storage_character : Char, command_ptr : usize)
+{
+    let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 5 }) };
+    
+    let operation = storage::with(
+            storage_character.get_ptr(),
+            |store| {
+                store.cursor_read_u32_with_replacement(&mut cursor)
+            }
+        );
+    let operation : Option<BinaryOp> = num::FromPrimitive::from_u32(operation);
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    
+    let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
+    
+    
+    cursor.seek(SeekFrom::Current(2)).unwrap();
+    
+    let filter_flags = ProjectileFilterFlags::read(&mut cursor);
+    
+    let variable_character = {
+        match storage_character.related_character(character_relation) {
+            Some(variable_character) => variable_character,
+            // just early out if we def cant figure out what character we're doing this to
+            None => return,
+        }
+    };
+    
+    let var = cursor.read_u32::<LittleEndian>().unwrap();
+    
+    let variable_type = var_rw::MatchState::get_number_type(var);
+    
+    // rhs for our filter comparison operation
+    let immediate = match variable_type {
+        Some(RegisterType::F32) => {
+            Number::F32(storage::with(
+                storage_character.get_ptr(),
+                |store| {
+                    store.cursor_read_f32_with_replacement(&mut cursor)
+                }
+            ))
+        },
+        Some(RegisterType::I32 | RegisterType::Bool) => {
+            Number::I32(cursor.read_i32::<LittleEndian>().unwrap())
+        },
+        None => {return;},
+    };
+    
+    let op_filter = match operation {
+        Some(operation) => {
+            ProjectileOpFilter::binary_op_immediate(
+                    operation,
+                    var,
+                    immediate
+                )
+        },
+        None => {return;},
+    };
+    
+    // note that we get the projectiles of variable_character
+    // but we're storing on storage_character
+    let projectile_filter = variable_character.get_projectiles(filter_flags, Some(op_filter));
+    
+    let result = match projectile_filter {
+        None => {
+            storage::with(
+                storage_character.get_ptr(),
+                |store| {
+                    store.projectile_filter = None;
+                }
+            );
+            
+            i32::FALSE
+        },
+        Some(mut projectile_filter) => {
+            projectile_filter.step();
+            
+            match projectile_filter.projectile {
+                Some(_projectile) => {
+                    storage::with(
+                        storage_character.get_ptr(),
+                        |store| {
+                            store.projectile_filter = Some(projectile_filter);
+                        }
+                    );
+                    
+                    i32::TRUE
+                },
+                None => i32::FALSE,
+            }
+        }
+    };
+    
+    storage_character.set_condition_register(result);
+}
+
 
 fn next_projectile(storage_character : Char, _command_ptr : usize)
 {
-    let result = storage::with(
+    let projectile_filter = storage::with(
         storage_character.get_ptr(),
         |store| {
-            match &mut store.projectile_filter {
+            store.projectile_filter.clone()
+        }
+    );
+    
+    let result = match projectile_filter {
+        None => {
+            i32::FALSE
+        },
+        Some(mut projectile_filter) => {
+            projectile_filter.step();
+            
+            match projectile_filter.projectile {
+                Some(_projectile) => {
+                    storage::with(
+                        storage_character.get_ptr(),
+                        |store| {
+                            store.projectile_filter = Some(projectile_filter.clone());
+                        }
+                    );
+                    
+                    i32::TRUE
+                },
                 None => {
-                    store.projectile_filter = None;
+                    storage::with(
+                        storage_character.get_ptr(),
+                        |store| {
+                            store.projectile_filter = None;
+                        }
+                    );
                     
                     i32::FALSE
-                },
-                Some(projectile_filter) => {
-                    projectile_filter.step();
-                    
-                    match projectile_filter.projectile {
-                        Some(_projectile) => {
-                            store.projectile_filter = Some(projectile_filter.clone());
-                            
-                            i32::TRUE
-                        },
-                        None => {
-                            store.projectile_filter = None;
-                            
-                            i32::FALSE
-                        }
-                    }
                 }
             }
         }
-    );
+    };
     
     storage_character.set_condition_register(result);
 }

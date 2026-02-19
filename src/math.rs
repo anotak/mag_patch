@@ -3,6 +3,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use std::f32::consts::*;
+use std::fmt;
 
 pub const DEGREES_TO_RADIANS : f32 = PI / 60.0;
 
@@ -143,7 +144,7 @@ pub fn clean_float(float : f32) -> f32 {
 
 /// used inside the var_rw! macro to convey type, then whatever cast is needed is done.
 /// also used for registers, similarly
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Number {
     F32(f32),
     I32(i32)
@@ -194,6 +195,16 @@ impl NumFromBool<Number> for bool {
 impl BoolRoundtrip for Number {
     fn bool_roundtrip(self : &Self) -> Self {
         self.is_true().from_bool()
+    }
+}
+
+impl fmt::UpperHex for Number {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Number::F32(value) => fmt::UpperHex::fmt(&value.to_bits(), f),
+            Number::I32(value) => fmt::UpperHex::fmt(&value, f),
+        }
+        
     }
 }
 
