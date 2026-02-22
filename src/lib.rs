@@ -18,6 +18,7 @@ mod error;
 mod input_parse;
 #[cfg(test)]
 mod tests;
+mod strings;
 
 use windows::Win32::System::SystemServices;
 use windows::Win32::Foundation::HINSTANCE;

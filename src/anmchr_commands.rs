@@ -16,6 +16,7 @@ use crate::var_rw;
 use crate::binary_operators::{BinaryOp,BinaryOpHandler};
 use crate::unary_operators::{UnaryOp,UnaryOpHandler};
 use crate::math::*;
+use crate::strings::*;
 
 /// This is the number after the 0x66
 /// All commands that start with 0x66 should be ones added by me (anotak). if you want to add commands you should reserve another starting value to prevent conflicts. (game uses commands 0 through 7 inclusive)
@@ -945,26 +946,15 @@ fn check_character_name(storage_character : Char, command_ptr : usize)
     
     let name_ptr = get_character_name_ptr(id) as usize;
     
-    let mut name_cursor = unsafe { get_cursor(name_ptr, cursor_size) };
+    let expected_name = GStr::from_cursor(&mut cursor, 64);
+    let actual_name = GStr::from_ptr(name_ptr, 64);
     
-    let mut is_match = true;
+    let is_match = expected_name.map_or(
+            false,
+            |expected_name| expected_name.eq_ignore_ascii_case(&actual_name)
+        );
     
-    for _ in 0..64 {
-        let expected_char = cursor.read_u8().unwrap();
-        let actual_char = name_cursor.read_u8().unwrap();
-        
-        
-        
-        if expected_char != actual_char {
-            is_match = false;
-            break;
-        } else if expected_char == 0x00 {
-            break;
-        }
-    }
-    
-    let result = if is_match { 1 } else { 0 };
-    
+    let result = is_match.from_bool();
     
     storage::with(
         storage_character.get_ptr(),
