@@ -1592,3 +1592,134 @@ fn test_reload_all() {
     );
 }
 
+
+#[test]
+fn test_string_comparisons() {
+    use crate::strings::GStr;
+    
+    let create_gstr = |s : &'static str| {
+        GStr::from_ptr(s.as_ptr() as usize, s.len())
+    };
+    
+    assert_eq!(
+        create_gstr("Test string 1\0\0\0\0\0")
+            .eq_ignore_ascii_case(
+                &create_gstr("Test string 1\0\0\0\0\0")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr("Test string 2\0")
+            .eq_ignore_ascii_case(
+                &create_gstr("Test string 2\0\0\0\0\0")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr("Test string 3")
+            .eq_ignore_ascii_case(
+                &create_gstr("Test stRING 3")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr("teSTing string 4\0")
+            .eq_ignore_ascii_case(
+                &create_gstr("Testing stRING 4")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr("testiNg string 5")
+            .eq_ignore_ascii_case(
+                &create_gstr("testing string 5\0")
+            ),
+        true
+        );
+    
+    
+    assert_eq!(
+        create_gstr("should not be equal")
+            .eq_ignore_ascii_case(
+                &create_gstr("to each other")
+            ),
+        false
+        );
+    
+    assert_eq!(
+        create_gstr("also should not be equal")
+            .eq_ignore_ascii_case(
+                &create_gstr("to each other\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0")
+            ),
+        false
+        );
+    
+    
+    assert_eq!(
+        create_gstr("a/b")
+            .eq_ignore_ascii_case_and_path_separators(
+                &create_gstr(r"a\b")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr(r"b\c")
+            .eq_ignore_ascii_case_and_path_separators(
+                &create_gstr(r"b/c")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr(r"FFFFFF\c")
+            .eq_ignore_ascii_case_and_path_separators(
+                &create_gstr(r"Ffffff/c")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr(r"potato/yam\tuber")
+            .path_suffix_compare(
+                &create_gstr(r"potato\YAM\tuber")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr(r"carrot/parsnip")
+            .path_suffix_compare(
+                &create_gstr("parsley/carrot/PARSNIP\0\0\0\0")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr(r"carrot/parsnip/")
+            .path_suffix_compare(
+                &create_gstr(r"parsley/carrot/PARSNIP")
+            ),
+        false
+        );
+    
+    assert_eq!(
+        create_gstr("garlic\0\0\0\0")
+            .path_suffix_compare(
+                &create_gstr(r"onions\shallots\garlic")
+            ),
+        true
+        );
+    
+    assert_eq!(
+        create_gstr("chivEs")
+            .path_suffix_compare(
+                &create_gstr("onions/shallots/GARLIC/chives\0\0\0\0\0\0\0")
+            ),
+        true
+        );
+}
