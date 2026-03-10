@@ -96,7 +96,12 @@ fn test_execute_anmchr_command(ptr : usize, to_test_str : &str)
 }
 
 
-extern "win64" fn replaced_fake_execute_anmchr_command(_executor_ptr : usize, _anmchr_command_ptr : usize) {}
+pub extern "win64" fn replaced_fake_execute_anmchr_command(executor_ptr : usize, _anmchr_command_ptr : usize) {
+    if executor_ptr == 0
+    {
+        println!("function body to get the optimizer to not delete this during release builds");
+    }
+}
 
 fn get_register_bool(ptr : usize, register : usize) -> bool
 {
