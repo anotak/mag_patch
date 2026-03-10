@@ -204,7 +204,7 @@ impl Eq for GStr {}
 impl fmt::Display for GStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for c in self.into_iter() {
-            write!(f, "{}", c)?;
+            write!(f, "{}", char::from(c as u8))?;
         }
         
         Ok(())
