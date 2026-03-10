@@ -12,6 +12,7 @@ use crate::bitflag_getter;
 use crate::math::*;
 use crate::binary_operators::{BinaryOp,BinaryOpHandler};
 use crate::storage::RegisterType;
+use crate::strings::{GStr};
 
 const CHAR_NODES_BASE : usize = 0xD44A70;
 const TEAMS_BASE : usize = 0xD47E68;
@@ -75,6 +76,22 @@ macro_rules! offset_getter_and_setter_flag {
             };
             
             unsafe { write_ptr::<$ty>(ptr, value) }
+        }
+    }
+}
+
+/// We set up getters and setters for basic offsetted values inside structs like so. Setting them up this way reduces code duplication / chance mistakes.
+macro_rules! offset_gstr {
+    ($getter:ident, $setter:ident,  $offset:expr, $capacity:expr) => {
+        #[allow(dead_code)]
+        #[inline]
+        pub fn $getter(&self) -> GStr
+        {
+            let offset = ($offset) as usize;
+            let ptr = self.ptr.wrapping_add(offset);
+            let capacity = ($capacity) as usize;
+            
+            GStr::from_ptr(ptr, capacity)
         }
     }
 }
@@ -623,7 +640,7 @@ impl Char {
         }
     }
     
-    pub fn get_projectiles(&self, filter_flags : ProjectileFilterFlags, op_filter : Option<ProjectileOpFilter>) -> Option<ProjectileFilter>
+    pub fn get_projectiles(&self, filter_flags : ProjectileFilterFlags, op_filter : Option<ProjectileOpFilter>, filename : Option<GStr>) -> Option<ProjectileFilter>
     {
         let player = self.player();
         
@@ -643,6 +660,7 @@ impl Char {
                     iter : iter,
                     projectile : None,
                     op_filter :  op_filter,
+                    filename : filename,
                 };
                 
                 Some(filter)
@@ -1012,7 +1030,8 @@ pub struct ProjectileFilter
     current_owner : Option<Char>,
     iter : ProjectileIterator,
     pub projectile : Option<Projectile>,
-    op_filter : Option<ProjectileOpFilter>
+    op_filter : Option<ProjectileOpFilter>,
+    filename : Option<GStr>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -1038,35 +1057,50 @@ impl ProjectileFilter {
             None => true,
         };
         
-        if is_correct_owner {
-            match &self.op_filter {
-                Some(op_filter) => {
-                    let lhs = var_rw::ProjectileState::load_number(projectile.get_ptr(), op_filter.variable_id);
-                    let rhs = op_filter.immediate;
-                    
-                    let variable_type = var_rw::ProjectileState::get_number_type(op_filter.variable_id);
-                    
-                    //debug_msg(format!("ptr = {:#X}\nop = {:?}\nlhs = {:X}\nrhs = {:X}\nvar_id = {:#X}\nvar_type = {:?}", projectile.get_ptr(), op_filter.op, lhs, rhs, op_filter.variable_id, variable_type));
-                    
-                    match variable_type {
-                        Some(RegisterType::F32) => {
-                            let result : f32 = op_filter.op.operate(lhs, rhs);
-                            
-                            result.is_true()
-                        },
-                        Some(RegisterType::I32 | RegisterType::Bool) => {
-                            let result : i32 = op_filter.op.operate(lhs, rhs);
-                            
-                            result.is_true()
-                        }
-                        None => false,
-                    }
-                },
-                None => true,
-            }
-        } else {
-            false
+        if !is_correct_owner {
+            return false;
         }
+        
+        let was_op_successful = match &self.op_filter {
+            Some(op_filter) => {
+                let lhs = var_rw::ProjectileState::load_number(projectile.get_ptr(), op_filter.variable_id);
+                let rhs = op_filter.immediate;
+                
+                let variable_type = var_rw::ProjectileState::get_number_type(op_filter.variable_id);
+                
+                //debug_msg(format!("ptr = {:#X}\nop = {:?}\nlhs = {:X}\nrhs = {:X}\nvar_id = {:#X}\nvar_type = {:?}", projectile.get_ptr(), op_filter.op, lhs, rhs, op_filter.variable_id, variable_type));
+                
+                match variable_type {
+                    Some(RegisterType::F32) => {
+                        let result : f32 = op_filter.op.operate(lhs, rhs);
+                        
+                        result.is_true()
+                    },
+                    Some(RegisterType::I32 | RegisterType::Bool) => {
+                        let result : i32 = op_filter.op.operate(lhs, rhs);
+                        
+                        result.is_true()
+                    }
+                    None => false,
+                }
+            },
+            None => true,
+        };
+        
+        if !was_op_successful {
+            return false;
+        }
+        
+        let does_filename_match = match &self.filename {
+            Some(desired_filename) => {
+                let potential_filename = projectile.get_shot_resource().get_filename();
+                
+                desired_filename.path_suffix_compare(&potential_filename)
+            },
+            None => true,
+        };
+        
+        does_filename_match
     }
     
     pub fn step(&mut self) {
@@ -1201,7 +1235,7 @@ impl Projectile {
     offset_getter_and_setter!(get_y_pos, set_y_pos, f32, 0x54 + PROJ_OFFSET);
     offset_getter_and_setter!(get_duration, set_duration, f32, 0x2078 + PROJ_OFFSET);
     offset_getter_and_setter!(get_current_owner_raw, set_current_owner_raw, usize, 0x2000 + PROJ_OFFSET);
-    offset_getter_and_setter!(get_shot_resource_raw, set_shot_resource_raw, usize, 0x16f8 + PROJ_OFFSET);
+    offset_getter_and_setter!(get_shot_resource_raw, set_shot_resource_raw, usize, 0x1f68 + PROJ_OFFSET);
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -1215,6 +1249,8 @@ impl ShotResource {
             ptr : self.get_shot_file_raw(),
         }
     }
+    
+    offset_gstr!(get_filename, set_filename, 0x0C, 64);
     
     offset_getter_and_setter!(get_shot_file_raw, set_shot_file_raw, usize, 0x78);
 }
@@ -1262,3 +1298,4 @@ impl ProjectileFilterFlags {
         }
     }
 }
+

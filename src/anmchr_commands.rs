@@ -43,7 +43,8 @@ pub enum AnoCmd
     
     GetProjectile = 0x30,
     NextProjectile = 0x31,
-    GetProjectileFiltered = 0x32,
+    GetProjectileFilteredByOperation = 0x32,
+    GetProjectileFilteredByFilename = 0x33,
     
     LoadProjectileVarIntoRegister = 0x35,
     StoreProjectileVarFromRegister = 0x36,
@@ -399,8 +400,11 @@ pub fn handle_ano_command(command : AnoCmd, exe_char : Char, command_ptr : usize
         AnoCmd::GetProjectile => {
             get_projectile(exe_char, command_ptr)
         },
-        AnoCmd::GetProjectileFiltered => {
-            get_projectile_filtered(exe_char, command_ptr)
+        AnoCmd::GetProjectileFilteredByOperation => {
+            get_projectile_filtered_by_operation(exe_char, command_ptr)
+        },
+        AnoCmd::GetProjectileFilteredByFilename => {
+            get_projectile_filtered_by_filename(exe_char, command_ptr)
         },
         AnoCmd::NextProjectile => {
             next_projectile(exe_char, command_ptr)
@@ -998,7 +1002,7 @@ fn get_projectile(storage_character : Char, command_ptr : usize)
     
     // note that we get the projectiles of variable_character
     // but we're storing on storage_character
-    let projectile_filter = variable_character.get_projectiles(filter_flags, None);
+    let projectile_filter = variable_character.get_projectiles(filter_flags, None, None);
     
     let result = storage::with(
         storage_character.get_ptr(),
@@ -1029,7 +1033,7 @@ fn get_projectile(storage_character : Char, command_ptr : usize)
 }
 
 
-fn get_projectile_filtered(storage_character : Char, command_ptr : usize)
+fn get_projectile_filtered_by_operation(storage_character : Char, command_ptr : usize)
 {
     let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 5 }) };
     
@@ -1091,7 +1095,72 @@ fn get_projectile_filtered(storage_character : Char, command_ptr : usize)
     
     // note that we get the projectiles of variable_character
     // but we're storing on storage_character
-    let projectile_filter = variable_character.get_projectiles(filter_flags, Some(op_filter));
+    let projectile_filter = variable_character.get_projectiles(filter_flags, Some(op_filter), None);
+    
+    let result = match projectile_filter {
+        None => {
+            storage::with(
+                storage_character.get_ptr(),
+                |store| {
+                    store.projectile_filter = None;
+                }
+            );
+            
+            i32::FALSE
+        },
+        Some(mut projectile_filter) => {
+            projectile_filter.step();
+            
+            match projectile_filter.projectile {
+                Some(_projectile) => {
+                    storage::with(
+                        storage_character.get_ptr(),
+                        |store| {
+                            store.projectile_filter = Some(projectile_filter);
+                        }
+                    );
+                    
+                    i32::TRUE
+                },
+                None => i32::FALSE,
+            }
+        }
+    };
+    
+    storage_character.set_condition_register(result);
+}
+
+
+fn get_projectile_filtered_by_filename(storage_character : Char, command_ptr : usize)
+{
+    let mut cursor = unsafe { get_cursor(command_ptr, const { size_of::<u32>() * 2  + size_of::<u8>() * 64 }) };
+    
+    cursor.seek(SeekFrom::Current(1)).unwrap();
+    
+    let character_relation = CharacterRelation::decode(cursor.read_u8().unwrap());
+    
+    
+    cursor.seek(SeekFrom::Current(2)).unwrap();
+    
+    let filter_flags = ProjectileFilterFlags::read(&mut cursor);
+    
+    let expected_name = GStr::from_cursor(&mut cursor, 64);
+    
+    // finished reading command
+    
+    let variable_character = {
+        match storage_character.related_character(character_relation) {
+            Some(variable_character) => variable_character,
+            // just early out if we def cant figure out what character we're doing this to
+            None => return,
+        }
+    };
+    
+    // note that we get the projectiles of variable_character
+    // but we're storing on storage_character
+    // also note - there's a tempting choice to check if expected_name is empty
+    // and then pass None, but None should be different than an empty string
+    let projectile_filter = variable_character.get_projectiles(filter_flags, None, expected_name);
     
     let result = match projectile_filter {
         None => {
