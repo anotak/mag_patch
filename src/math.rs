@@ -22,7 +22,7 @@ pub trait NumFromBool<T> where T : Truthful {
 }
 
 pub trait BoolRoundtrip {
-    fn bool_roundtrip(self : &Self) -> Self;
+    fn bool_roundtrip(&self) -> Self;
 }
 
 impl Truthful for i32 {
@@ -78,13 +78,13 @@ impl NumFromBool<f32> for bool {
 }
 
 impl BoolRoundtrip for i32 {
-    fn bool_roundtrip(self : &Self) -> Self {
+    fn bool_roundtrip(&self) -> Self {
         self.is_true().from_bool()
     }
 }
 
 impl BoolRoundtrip for f32 {
-    fn bool_roundtrip(self : &Self) -> Self {
+    fn bool_roundtrip(&self) -> Self {
         self.is_true().from_bool()
     }
 }
@@ -193,7 +193,7 @@ impl NumFromBool<Number> for bool {
 
 
 impl BoolRoundtrip for Number {
-    fn bool_roundtrip(self : &Self) -> Self {
+    fn bool_roundtrip(&self) -> Self {
         self.is_true().from_bool()
     }
 }
