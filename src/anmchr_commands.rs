@@ -490,7 +490,7 @@ fn load_var_into_register<F>(storage_character : Char, command_ptr : usize, load
                 }
             );
             
-            variable_character.map(|c| c.set_condition_register(result as i32));
+            storage_character.set_condition_register(result as i32);
         },
         RegisterType::I32 => {
             let result = match variable_character {
@@ -505,7 +505,7 @@ fn load_var_into_register<F>(storage_character : Char, command_ptr : usize, load
                 }
             );
             
-            variable_character.map(|c| c.set_condition_register(result));
+            storage_character.set_condition_register(result);
         },
         RegisterType::Bool => {
             let result = match variable_character {
@@ -520,7 +520,7 @@ fn load_var_into_register<F>(storage_character : Char, command_ptr : usize, load
                 }
             );
             
-            variable_character.map(|c| c.set_condition_register(result));
+            storage_character.set_condition_register(result);
         },
     };
 }
