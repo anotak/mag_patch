@@ -575,7 +575,7 @@ fn store_var_from_register<F>(storage_character : Char, command_ptr : usize, sto
     
     storing_fn(&variable_character, var, source_type, source_value);
     
-    variable_character.set_condition_register(source_value.into_int());
+    storage_character.set_condition_register(source_value.into_int());
 }
 
 
