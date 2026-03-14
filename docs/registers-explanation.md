@@ -330,6 +330,116 @@ If the boolean register is equal to false, then:
 Second operation: `d0000000`: Assign destination register `0c` equal to the second immediate `22220000`.
 Then, set the left hand side boolean register to true (`01000000`).
 
+## 66_30 gets the first projectile in one of the projectile lists
+
+Since there can be many projectiles on screen, we have to be able to make sure we're getting the right one. To do that, we have to use a command like 66_30, 66_32, or 66_32 to set up a projectile list and get the first one. Once a list is set up, to get the second one you just use 66_31.
+```
+66000000
+30000000
+00000000
+00000000
+```
+
+This command sets the condition register to 1 if there is a projectile and 0 if there isn't one. So you can use 0_08 after to do different logic if there is no projectile for that character.
+
+The first 00000000, specifically the 2nd byte in it, determines the character relation (see above about other variable commands). So, to get the opponent's projectiles you'd do:
+
+```
+66000000
+30000000
+00800000
+00000000
+```
+
+The final line determines if the projectile list is sorted newest to oldest (00000000) or oldest to newest (01000000).
+
+```
+66000000
+30000000
+00000000
+01000000
+```
+
+Will grab the projectiles in reverse order.
+
+## 66_31 grabs the next projectile in the current list
+
+```
+66000000
+31000000
+```
+See above explanation for 66_30. This command works with any command that sets up the projectile list.
+
+This command does nothing if no projectile list has been set up.
+
+This command sets the condition register to 1 if there is a next projectile in the list and 0 if there isn't one. So you can use 0_08 after to do different logic if there is no projectile left.
+
+## 66_32 sets the projectile list up with a filter by a binary operation
+
+See the explanation for 66_30 for an explanation of the projectile list. This is basically 66_30 but it lets you skip over projectiles that don't meet a criteria.
+
+```
+66000000
+32000000
+C4000000
+00000000
+01000000
+21000000
+0000C842
+```
+
+The first parameter (`C4000000` in the example) determines what binary operation to use.
+The second parameter (`00000000`) is the same as 66_30's character relation line.
+The third parameter (`01000000`) is the same as 66_31's order parameter.
+The fourth parameter (`21000000`) is the projectile variable to compare with.
+The fifth parameter (`0000C842`) is an immediate number value.
+
+So, basically, this command does what 66_30 does, but then it loads a variable from the projectile, does a binary operation with it, and then if that operation turned out to give a false result (zero), it discards it and tries the next one, until it finds one.
+
+If it doesn't find any, it sets the condition register to 0. If it does, it sets it to 1.
+
+This is the command you want if you want to search the list for projectiles that match a certain projectile class ID (typehash), since `b0000000` would be the projectile variable to check for that. Then you'd use `c0000000` to check equality, and a valid typehash like `9B99C070`, for example.
+
+## 66_33 sets the projectile list up with a filter by filename
+This command works similar to 66_30 and 66_32, just it filters by a partial filename.
+
+The first two parameters are the same as with 66_30, and then you provide a filename, which must be 64 characters long or less. Extra bytes should be 00s. The filename can just include a long path like `Djinn\shot\AirthrowA` or it can just be `AirthrowA`.
+
+This command is case insensitive.
+
+NOTE: YOU DON'T PROVIDE THE .sht or .ati FILE EXTENSION
+```
+66000000
+33000000
+00000000
+01000000
+446A696E
+6E5C7368
+6F745C41
+69727468
+726F7741
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+00000000
+```
+
+If it doesn't find any, it sets the condition register to 0. If it does, it sets it to 1.
+
+## 66_35 loads projectile variables into a register
+
+This basically works the same as 66_15 except with projectile variables. If there is no projectile currently selected (because, for example, there are no projectiles onscreen), then this command sets the register to 0.
+
+## 66_36 stores a register into a projectile variable
+
+This basically works the same as 66_16 except with projectile variables. If there is no projectile currently selected (because, for example, there are no projectiles onscreen), then nothing happens.
 
 ## Float replacement
 You should be able to replace any floating point value in another command with a register by just putting XXFFFFFF instead of the float. This doesn't work with integers unfortunately.
@@ -361,7 +471,7 @@ So this will load what operation to do from register 18. So if register 18 = 0, 
 But if register 18 is, say, 3, then it would do
 `register[17] = register[15] / register[16]`
 
-## list of operations/variables
+## list of Binary Operations
 this is all the binary operations. if you want any not listed here feel free to ask, no promises though
 ```rs
 pub enum BinaryOp {
@@ -433,7 +543,7 @@ pub enum BinaryOp {
     IfTrue = 0xD1,
 }
 ```
-
+## list of Unary Operations
 this is all the unary operations. if you want any not listed here feel free to ask, no promises though
 ```rs
 pub enum UnaryOp {
@@ -483,9 +593,11 @@ pub enum UnaryOp {
     LogicalNot = 0xC0,
 }
 ```
+
+## list of Game/Character Variables
 all the game variables. if you want any not listed here feel free to ask, no promises though
 ```rs
- pub enum MatchState {
+pub enum MatchState {
     /// The game timer, as in 0-99. -1 if the timer is infinite.
     Timer = 0x00,
     /// Counts up from the start of the current match state once per frame
@@ -542,5 +654,20 @@ all the game variables. if you want any not listed here feel free to ask, no pro
     PartnerFlags = 0xF5,
     /// note: this is set on the opponent. this the flying screen install flag, which is normally set by launching the opponent. if it's 1 then a jump S will cause flying screen and a hard kd
     FlyingScreenInstallFlag = 0x1000,
+}
+```
+
+## list of Projectile Variables
+
+```rs
+pub enum ProjectileState {
+    /// Duration remaining. Negative values last forever.
+    Duration = 0x00,
+    /// 0.0 is the middle of the stage
+    XPosition = 0x20,
+    /// Floor is 0.0, upward is positive
+    YPosition = 0x21,
+    /// Projectile Class ID
+    TypeHash = 0xB0,
 }
 ```
