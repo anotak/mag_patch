@@ -2,6 +2,9 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
+// need to detect those types of errors so we lint for it
+#![deny(clippy::arithmetic_side_effects)]
+
 use crate::math::*;
 
 macro_rules! unary_operators {
