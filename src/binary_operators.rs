@@ -1,6 +1,8 @@
 //! Operators with 2 parameters for use by anmchr commands and so on.
 
 #![deny(unsafe_op_in_unsafe_fn)]
+// need to be robust against those types of errors so we lint for it
+#![deny(clippy::arithmetic_side_effects)]
 use crate::math::*;
 
 macro_rules! binary_operators {
@@ -277,6 +279,8 @@ binary_operators! {
         },
         |lhs : i32, rhs : i32| {
             if rhs != 0 {
+                // allowing because we manually checked
+                #[allow(clippy::arithmetic_side_effects)]
                 lhs.wrapping_div(rhs)
             } else {
                 0
@@ -295,6 +299,8 @@ binary_operators! {
         },
         |lhs : i32, rhs : i32| {
             if rhs != 0 {
+                // allowing because we manually checked
+                #[allow(clippy::arithmetic_side_effects)]
                 lhs.wrapping_rem_euclid(rhs)
             } else {
                 0
@@ -341,7 +347,7 @@ binary_operators! {
             let lhs = lhs.abs();
             
             if rhs < 0 {
-                -lhs
+                lhs.saturating_neg()
             } else {
                 lhs
             }
