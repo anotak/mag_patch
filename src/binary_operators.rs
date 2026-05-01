@@ -1,7 +1,7 @@
 //! Operators with 2 parameters for use by anmchr commands and so on.
 
 #![deny(unsafe_op_in_unsafe_fn)]
-// need to be robust against those types of errors so we lint for it
+// need to detect those types of errors so we lint for it
 #![deny(clippy::arithmetic_side_effects)]
 use crate::math::*;
 
