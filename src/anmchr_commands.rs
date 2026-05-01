@@ -655,7 +655,7 @@ fn binary_operation_var_register(storage_character : Char, command_ptr : usize)
     
     let variable_type = var_rw::MatchState::get_number_type(var);
     
-    let variable_type = if variable_type == None {
+    let variable_type = if variable_type.is_none() {
             None
         } else if register_flags.is_rhs_bool() {
             Some(RegisterType::Bool)
