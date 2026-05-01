@@ -477,7 +477,7 @@ impl Char {
             }
         }
         
-        return Team::Unknown;
+        Team::Unknown
     }
     
     pub fn player(&self) -> Option<Player>
@@ -657,10 +657,10 @@ impl Char {
             if let Some(iter) = iter {
                 let filter = ProjectileFilter {
                     current_owner : Some(self.clone()),
-                    iter : iter,
+                    iter,
                     projectile : None,
-                    op_filter :  op_filter,
-                    filename : filename,
+                    op_filter,
+                    filename,
                 };
                 
                 Some(filter)
